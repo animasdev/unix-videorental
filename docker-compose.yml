@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  server:
+    build: .
+    container_name: video_rental_server
+    volumes:
+      - ./db/videoteca.db:/app/db/videoteca.db  # DB binding from host
+      - ./logs:/app/logs  # DB binding from host
+      - socket_volume:/app/files/socket  # Unix socket inside the container
+    entrypoint: ["./server/server"]
+
+  client:
+    build: .
+    container_name: video_rental_client
+    volumes:
+      - ./files/videoteca.db:/app/files/videoteca.db  # DB binding from host
+      - ./logs:/app/logs
+      - socket_volume:/app/files/socket  # Unix socket inside the container
+    entrypoint: ["./client/client"]
+
+volumes:
+  socket_volume:  # Volume for Unix socket file (within the container)

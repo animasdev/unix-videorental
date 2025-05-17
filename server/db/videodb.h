@@ -8,7 +8,7 @@
 
 
 int setup_db();
-
+int insert_user();
 // autenticazione utente
 int check_user_login( const char *username, const char *password);
 

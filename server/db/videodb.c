@@ -4,33 +4,38 @@
 
 // Setup the database by creating tables if they do not exist
 
-sqlite3* get_db() {
+sqlite3 *get_db()
+{
     sqlite3 *db;
-    if (sqlite3_open_v2("../db/videoteca.db", &db,SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE,NULL)) {
+    if (sqlite3_open_v2("../db/videoteca.db", &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL))
+    {
         fprintf(stdout, "Can't open database: %s\n", sqlite3_errmsg(db));
         return NULL;
-    }else{
+    }
+    else
+    {
         return db;
     }
 }
 
-
-int setup_db() {
+int setup_db()
+{
     const sqlite3 *db = get_db();
-    const char *create_users_table = 
+    const char *create_users_table =
         "CREATE TABLE IF NOT EXISTS Users ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "username TEXT UNIQUE NOT NULL, "
-        "password TEXT NOT NULL);";
-    
-    const char *create_videos_table = 
+        "password TEXT NOT NULL, "
+        "is_admin INTEGER NOT NULL DEFAULT 0);";
+
+    const char *create_videos_table =
         "CREATE TABLE IF NOT EXISTS Videos ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "title TEXT NOT NULL, "
         "available_copies INTEGER NOT NULL, "
         "borrowed_copies INTEGER NOT NULL DEFAULT 0);";
-    
-    const char *create_rentals_table = 
+
+    const char *create_rentals_table =
         "CREATE TABLE IF NOT EXISTS Rentals ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "video_id INTEGER NOT NULL, "
@@ -43,11 +48,13 @@ int setup_db() {
     sqlite3_stmt *stmt;
 
     // Create Users table
-    if (sqlite3_prepare_v2(db,create_users_table, -1, &stmt, 0) != SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, create_users_table, -1, &stmt, 0) != SQLITE_OK)
+    {
         fprintf(stdout, "Failed to prepare create Users table: %s\n", sqlite3_errmsg(db));
         return 0;
     }
-    if (sqlite3_step(stmt) != SQLITE_DONE) {
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
         fprintf(stdout, "Failed to create Users table: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return 0;
@@ -55,11 +62,13 @@ int setup_db() {
     sqlite3_finalize(stmt);
 
     // Create Videos table
-    if (sqlite3_prepare_v2(db,create_videos_table, -1, &stmt, 0) != SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, create_videos_table, -1, &stmt, 0) != SQLITE_OK)
+    {
         fprintf(stdout, "Failed to prepare create Videos table: %s\n", sqlite3_errmsg(db));
         return 0;
     }
-    if (sqlite3_step(stmt) != SQLITE_DONE) {
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
         fprintf(stdout, "Failed to create Videos table: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return 0;
@@ -67,11 +76,13 @@ int setup_db() {
     sqlite3_finalize(stmt);
 
     // Create Rentals table
-    if (sqlite3_prepare_v2(db,create_rentals_table, -1, &stmt, 0) != SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, create_rentals_table, -1, &stmt, 0) != SQLITE_OK)
+    {
         fprintf(stdout, "Failed to prepare create Rentals table: %s\n", sqlite3_errmsg(db));
         return 0;
     }
-    if (sqlite3_step(stmt) != SQLITE_DONE) {
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
         fprintf(stdout, "Failed to create Rentals table: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return 0;
@@ -81,9 +92,24 @@ int setup_db() {
     return 1;
 }
 
-int insert_user(){
+int insert_user()
+{
     const sqlite3 *db = get_db();
-    const char *create_users_table = 
+    const char *insert_user =
         "INSERT INTO Users (username,password) VALUES ('nello','prova')";
+    sqlite3_stmt *stmt;
 
+    if (sqlite3_prepare_v2(db, insert_user, -1, &stmt, 0) != SQLITE_OK)
+    {
+        fprintf(stdout, "Failed to prepare create Users table: %s\n", sqlite3_errmsg(db));
+        return 0;
+    }
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        fprintf(stdout, "Failed to create Users table: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    return 1;
 }

@@ -3,52 +3,73 @@
 #include <sqlite3.h>
 #include "userdb.h"
 
-#define MAX_MEM_USRS 50
-
-struct user {
-    const char* username;
-    const char* password;
-    int role;
-};
-
-struct user users[MAX_MEM_USRS];
-int curr_insert = 0;
+extern sqlite3 *get_db();  // Make sure to provide this function in a db.c file or here
+                    // Example: extern sqlite3 *get_db(); if in another file
 
 int user_exists(const char *username) {
-    printf("checking if user %s exists\n",username);
-    if (curr_insert == 0 ) return -1;
-    for (int i=0;i<curr_insert;i++){
-        const struct user usr = users[i];
-        printf("user name %s\n",usr.username);
-        printf("user pass %s\n",usr.password);
-        printf("user role %d\n",usr.role);
-        if (strcmp(username,usr.username) == 0)
-            return i;
+    sqlite3 *db = get_db();
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT id FROM Users WHERE username = ?";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
+        return -1;
     }
-    return -1;
+
+    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+
+    int result = -1;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        result = sqlite3_column_int(stmt, 0); // return user id
+    }
+
+    sqlite3_finalize(stmt);
+    return result;
 }
 
-int user_login(const int usr_id, const char *password){
-    if (curr_insert == 0 ) return 0;
-    if (usr_id < MAX_MEM_USRS){
-        printf("yes\n");
-        const struct user usr = users[usr_id];
-        printf("user name %s\n",usr.username);
-        printf("user pass %s\n",usr.password);
-        printf("user role %d\n",usr.role);
-        return strcmp(password,users[usr_id].password);
+int user_login(const int usr_id, const char *password) {
+    sqlite3 *db = get_db();
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT password FROM Users WHERE id = ?";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare login check: %s\n", sqlite3_errmsg(db));
+        return 0;
     }
-    return 0;
+
+    sqlite3_bind_int(stmt, 1, usr_id);
+
+    int result = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        const unsigned char *db_password = sqlite3_column_text(stmt, 0);
+        if (db_password && strcmp((const char *)db_password, password) == 0) {
+            result = 1;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+    return result;
 }
 
-int user_register(const char *username, const char *password){
-    if (user_exists(username) == -1){
-        struct user new_usr;
-        new_usr.username=username;
-        new_usr.password=password;
-        new_usr.role=0;
-        users[curr_insert] = new_usr;
-        return curr_insert++;
+int user_register(const char *username, const char *password) {
+    if (user_exists(username) != -1) {
+        return -1; // already exists
     }
-    return -1;
+
+    sqlite3 *db = get_db();
+    sqlite3_stmt *stmt;
+    const char *sql = "INSERT INTO Users (username, password) VALUES (?, ?)";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare insert: %s\n", sqlite3_errmsg(db));
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, password, -1, SQLITE_STATIC);
+
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    return (rc == SQLITE_DONE) ? user_exists(username) : -1;
 }

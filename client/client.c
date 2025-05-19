@@ -46,7 +46,7 @@ int main() {
     }
 
     // Build the message "check user <username>"
-    snprintf(buffer, sizeof(buffer), "check user %s", username);
+    snprintf(buffer, sizeof(buffer), "CHECK USER %s\n", username);
 
     // Send it to server
     if (send(sock, buffer, strlen(buffer), 0) == -1) {
@@ -80,6 +80,36 @@ int main() {
             input[len-1] = '\0';
         }
         snprintf(buffer, sizeof(buffer), "LOGIN %s %s",username, input);
+        if (send(sock, buffer, strlen(buffer), 0) == -1) {
+        perror("send");
+        close(sock);
+        return 1;
+        }
+
+        // Wait for response from server
+        ssize_t bytes = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        if (bytes <= 0) {
+            printf("Server disconnected or no response.\n");
+            close(sock);
+            return 1;
+        }
+
+        buffer[bytes] = '\0';
+        printf("Server response: %s\n", buffer);
+    }
+    else if (strcmp(buffer, "REGISTER") == 0) {
+        printf("New user! Choose password: ");
+        if (fgets(input, sizeof(input), stdin) == NULL) {
+            printf("No password input.\n");
+            close(sock);
+            return 1;
+        }
+        // Remove trailing newline
+        size_t len = strlen(input);
+        if (len > 0 && input[len-1] == '\n') {
+            input[len-1] = '\0';
+        }
+        snprintf(buffer, sizeof(buffer), "REGISTER %s %s",username, input);
         if (send(sock, buffer, strlen(buffer), 0) == -1) {
         perror("send");
         close(sock);

@@ -6,15 +6,24 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <signal.h>
+#include "userdb.h"
 
 #define SOCKET_PATH "/tmp/mysocket"
 #define BUFFER_SIZE 1024
 #define MAX_TOKENS 100 
 #define MAX_TOKEN_LEN 100 
 
+#define CHECK_COMMAND 1
+#define LOGIN_COMMAND 2
+#define REGISTER_COMMAND 3 
+#define LIST_COMMAND 4
+#define RENT_COMMAND 5
+#define CLOSE_COMMAND 6
+
+
 
 void cleanup(int signum);
-int user_exists(const char *username);
+
 int parse_command(const char *input, char *tokens[]);
 int command_type(const char *cmd);
 
@@ -26,38 +35,44 @@ void handle_client(int client_fd) {
         buffer[bytes_read] = '\0';
         printf("Client (%d) says: %s\n", client_fd, buffer);
 
-        const char *prefix_check = "check user ";
-        const char *prefix_login = "LOGIN ";
-        char **tokens;
-        if (parse_command(buffer,tokens) ) {printf("parse token ok\n");}
-        switch (command_type(tokens[0]))
-        {
-        case 1:
-            printf("check\n");
-            break;
-        
-        default:
-            break;
-        }
-        if (strncmp(buffer, prefix_check, strlen(prefix_check)) == 0) {
-            char *username = buffer + strlen(prefix_check);
-            size_t len = strlen(username);
-            if (len > 0 && username[len - 1] == '\n') {
-                username[len - 1] = '\0';
-            }
+        char *tokens[MAX_TOKENS] = {0};
+        if (parse_command(buffer,tokens)>0) {printf("parse token ok\n");}
+        printf("First token: '%s'\n", tokens[0]);
+        printf("second token: '%s'\n", tokens[1]);
+        printf("third token: '%s'\n", tokens[2]);
+        const int cmd_type = command_type(tokens[0]);
+        printf("identified cmd %d\n",cmd_type);
+        switch (cmd_type) {
+            case CHECK_COMMAND:{
+                char* username = tokens[2];
+                printf("extracted username %s\n",username);
+                size_t len = strlen(username);
+                if (len > 0 && username[len - 1] == '\n') {
+                    username[len - 1] = '\0';
+                }
 
-            if (user_exists(username)) {
-                send(client_fd, "LOGIN", 5, 0);
-            } else {
-                send(client_fd, "REGISTER", 9, 0);
+                if (user_exists(username) > -1) {
+                    send(client_fd, "LOGIN", 5, 0);
+                } else {
+                    send(client_fd, "REGISTER", 9, 0);
+                }
+                break;
             }
-        }
-        else if (strncmp(buffer, prefix_login, strlen(prefix_login)) == 0) {
-            send(client_fd, "LOGIN OK\n", 9, 0);
-        }
-        else {
-            const char *msg = "ERROR: Unknown command\n";
-            send(client_fd, msg, strlen(msg), 0);
+            case REGISTER_COMMAND:{
+
+                int new_id = user_register(tokens[1],tokens[2]);
+                if (new_id > -1){
+                    printf("registered new user %s - %s with id %d\n",tokens[1],tokens[2],new_id);
+                }else {
+                    printf("error registering new user %s %s\n",tokens[1],tokens[2]);
+                }
+                break;
+            }
+            default:{
+                const char *msg = "ERROR: Unknown command\n";
+                printf("%s\n",msg);
+                send(client_fd, msg, strlen(msg), 0);
+            }
         }
     }
 
@@ -149,18 +164,17 @@ int parse_command(const char *input, char *tokens[]) {
 }
 
 int command_type(const char *cmd) {
-    if (strcmp(cmd, "CHECK") == 0) return 1;
-    if (strcmp(cmd, "LOGIN") == 0) return 2;
-    if (strcmp(cmd, "REGISTER") == 0) return 3;
-    if (strcmp(cmd, "LIST") == 0) return 4;
-    if (strcmp(cmd, "RENT") == 0) return 5;
-    if (strcmp(cmd, "CLOSE") == 0) return 6;
+    if (strcmp(cmd, "CHECK") == 0) return CHECK_COMMAND;
+    if (strcmp(cmd, "LOGIN") == 0) return LOGIN_COMMAND;
+    if (strcmp(cmd, "REGISTER") == 0) return REGISTER_COMMAND;
+    if (strcmp(cmd, "LIST") == 0) return LIST_COMMAND;
+    if (strcmp(cmd, "RENT") == 0) return RENT_COMMAND;
+    if (strcmp(cmd, "CLOSE") == 0) return CLOSE_COMMAND;
+
     return 0;
 }
 
-int user_exists(const char *username) {
-    return strcmp(username, "alice") == 0;
-}
+
 
 void cleanup(int signum) {
     unlink(SOCKET_PATH);

@@ -3,8 +3,7 @@
 #include <sqlite3.h>
 #include "userdb.h"
 
-extern sqlite3 *get_db();  // Make sure to provide this function in a db.c file or here
-                    // Example: extern sqlite3 *get_db(); if in another file
+extern sqlite3 *get_db(); 
 
 int user_exists(const char *username) {
     sqlite3 *db = get_db();
@@ -20,7 +19,7 @@ int user_exists(const char *username) {
 
     int result = -1;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
-        result = sqlite3_column_int(stmt, 0); // return user id
+        result = sqlite3_column_int(stmt, 0);
     }
 
     sqlite3_finalize(stmt);

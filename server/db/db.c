@@ -74,7 +74,6 @@ int setup_db() {
     }
     sqlite3_finalize(stmt);
 
-    // Create Rentals table
     if (sqlite3_prepare_v2(db, create_rentals_table, -1, &stmt, 0) != SQLITE_OK)
     {
         fprintf(stdout, "Failed to prepare create Rentals table: %s\n", sqlite3_errmsg(db));

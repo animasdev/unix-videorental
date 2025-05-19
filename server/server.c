@@ -59,12 +59,22 @@ void handle_client(int client_fd) {
                 break;
             }
             case REGISTER_COMMAND:{
-
                 int new_id = user_register(tokens[1],tokens[2]);
                 if (new_id > -1){
                     printf("registered new user %s - %s with id %d\n",tokens[1],tokens[2],new_id);
                 }else {
                     printf("error registering new user %s %s\n",tokens[1],tokens[2]);
+                }
+                break;
+            }
+            case LOGIN_COMMAND: {
+                char* username = tokens[1];
+                char* pass = tokens[2];
+                const int id = user_exists(username);
+                if (user_login(id,pass)){
+                    send(client_fd, "OK", 2, 0);
+                } else {
+                    send(client_fd, "KO", 2, 0);
                 }
                 break;
             }

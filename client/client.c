@@ -84,7 +84,7 @@ int main() {
         }
         
     }
-    else if (strcmp(buffer, "REGISTER") == 0) {
+    else if (strcmp(response, "REGISTER") == 0) {
         printf("New user! Choose password: ");
         if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
             printf("No password input.\n");

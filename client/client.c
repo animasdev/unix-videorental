@@ -17,6 +17,7 @@
 */
 int send_request(int socket, const char* request, char* response);
 int parse_user_response(const char* response,int* usr_id,int* usr_is_admin);
+int parse_add_movie_response(const char* response, int* movie_id);
 int main() {
     int sock;
     struct sockaddr_un addr;
@@ -152,12 +153,20 @@ int main() {
                         perror("send");
                         close(sock);
                         return 1;
+                    }else{
+                        int movie_id = 0;
+                        if (parse_add_movie_response(response,&movie_id)) {
+                            printf("added movie \"%s\" with id %d, number of copies: %s\n",title,movie_id,buffer);
+                        }
                     }
                     break;
                 }
                 case '2':
                     printf("You chose option 2 (fff)\n");
                     break;
+                case 'q':
+                case 'Q':
+                    exit(0);
                 default:
                     printf("Invalid choice. Please try again.\n");
             }
@@ -184,7 +193,7 @@ int send_request(int socket, const char* request, char* response){
         return 0;
     }
 
-    ssize_t bytes = recv(socket, response, sizeof(response) - 1, 0);
+    ssize_t bytes = recv(socket, response, BUFFER_SIZE - 1, 0);
     if (bytes <= 0) {
         printf("Server disconnected or no response.\n");
         close(socket);
@@ -204,6 +213,20 @@ int parse_user_response(const char* response,int* usr_id,int* usr_is_admin){
             (*usr_id)=id;
             (*usr_is_admin)=is_admin;
             return 1;
+        }
+    }
+    return 0;
+}
+
+int parse_add_movie_response(const char* response, int* movie_id) {
+    const char* tokens[MAX_TOKENS];
+    if (parse_command(response,tokens)>0){
+        if (strcmp(tokens[0], "OK") == 0){
+            const int id = atoi(tokens[1]);
+            (*movie_id)=id;
+            return 1;
+        }else{
+            printf("Error: %s\n",tokens[1]);
         }
     }
     return 0;

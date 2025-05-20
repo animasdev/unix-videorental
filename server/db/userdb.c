@@ -16,11 +16,22 @@ int user_exists(const char *username) {
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
-
+    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT);
+    const char *expanded = sqlite3_expanded_sql(stmt);
+    if (expanded) {
+        printf("Executing SQL: %s\n", expanded);
+        sqlite3_free((void *)expanded);
+    }
     int result = -1;
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
+    int rc =sqlite3_step(stmt);
+    if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+        fprintf(stderr, "sqlite3_step failed: %s (code %d, extended %d)\n",
+                sqlite3_errmsg(db), rc, sqlite3_extended_errcode(db));
+    }
+
+    if ( rc == SQLITE_ROW) {
         result = sqlite3_column_int(stmt, 0);
+        printf("result: %d\n",result);
     }
 
     sqlite3_finalize(stmt);

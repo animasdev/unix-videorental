@@ -6,4 +6,5 @@
 sqlite3 *get_db();
 
 int setup_db();
+int admin_exists();
 #endif 

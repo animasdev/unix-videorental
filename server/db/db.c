@@ -3,10 +3,10 @@
 
 sqlite3 *get_db() {
     sqlite3 *db = NULL;
-        if (sqlite3_open("../db/videoteca.db", &db) != SQLITE_OK) {
-            fprintf(stderr, "Can't open DB: %s\n", sqlite3_errmsg(db));
-            return NULL;
-        }
+    if (sqlite3_open("../db/videoteca.db", &db) != SQLITE_OK) {
+        fprintf(stderr, "Can't open DB: %s\n", sqlite3_errmsg(db));
+        return NULL;
+    }
     return db;
 }
 
@@ -88,3 +88,20 @@ int setup_db() {
     sqlite3_close(db);
     return 1;
 }
+
+int admin_exists(){
+    sqlite3 *db = get_db();
+    const char *sql = "SELECT COUNT(*) FROM Users WHERE is_admin=1;";
+    sqlite3_stmt *stmt;
+    int count = 0;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            count = sqlite3_column_int(stmt, 0);
+        }
+    }
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    return count > 0;
+}
+

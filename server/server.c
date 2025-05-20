@@ -7,6 +7,7 @@
 #include <sys/un.h>
 #include <signal.h>
 #include "userdb.h"
+#include "videodb.h"
 #include "db.h"
 
 #define SOCKET_PATH "/tmp/mysocket"
@@ -20,6 +21,7 @@
 #define LIST_COMMAND 4
 #define RENT_COMMAND 5
 #define CLOSE_COMMAND 6
+#define MOVIE_COMMAND 7
 #define DB_PATH "../db/videoteca.db"
 
 
@@ -28,6 +30,7 @@ void cleanup(int signum);
 int parse_command(const char *input, char *tokens[]);
 int command_type(const char *cmd);
 int db_setup();
+int handle_movie_command(const char** tokens);
 
 void handle_client(int client_fd) {
     char buffer[BUFFER_SIZE];
@@ -86,6 +89,12 @@ void handle_client(int client_fd) {
                     send(client_fd, response, strlen(response), 0);
                 } else {
                     send(client_fd, "KO", 2, 0);
+                }
+                break;
+            }
+            case MOVIE_COMMAND: {
+                if (!handle_movie_command(tokens)){
+                    printf("Error handling movie subcommand\n");
                 }
                 break;
             }
@@ -197,6 +206,7 @@ int command_type(const char *cmd) {
     if (strcmp(cmd, "LIST") == 0) return LIST_COMMAND;
     if (strcmp(cmd, "RENT") == 0) return RENT_COMMAND;
     if (strcmp(cmd, "CLOSE") == 0) return CLOSE_COMMAND;
+    if (strcmp(cmd, "MOVIE") == 0) return MOVIE_COMMAND;
 
     return 0;
 }
@@ -244,4 +254,32 @@ int db_setup(){
     }
     sqlite3_close(db);
     return 1;
+}
+
+#define ADD_SUBCOMAND 1
+#define PUT_SUBCOMAND 2
+#define DEL_SUBCOMAND 3
+
+
+int parse_movie_subcommand(const char* subcmd){
+    if (strcmp(subcmd, "ADD") == 0) return ADD_SUBCOMAND;
+    if (strcmp(subcmd, "PUT") == 0) return PUT_SUBCOMAND;
+    if (strcmp(subcmd, "DEL") == 0) return DEL_SUBCOMAND;
+
+    return 0;
+}
+int handle_movie_command(const char** tokens){
+    switch(parse_movie_subcommand(tokens[1])) {
+        case ADD_SUBCOMAND: {
+            char* title = tokens[2];
+            int nr = atoi(tokens[3]);
+            return video_insert(title,nr);
+            break;
+        }
+        default: {
+            printf("Subcommand not found.\n");
+            return 0;
+            break;
+        }
+    }
 }

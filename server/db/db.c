@@ -23,7 +23,7 @@ int setup_db() {
     const char *create_videos_table =
         "CREATE TABLE IF NOT EXISTS Videos ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "title TEXT NOT NULL, "
+        "title TEXT UNIQUE NOT NULL, "
         "available_copies INTEGER NOT NULL, "
         "borrowed_copies INTEGER NOT NULL DEFAULT 0);";
 

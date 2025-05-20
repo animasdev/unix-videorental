@@ -1,3 +1,6 @@
 
 .DS_Store
 server/sqliteTest
+client
+server
+db/videoteca.db

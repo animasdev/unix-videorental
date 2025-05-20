@@ -88,3 +88,26 @@ int user_register(const char *username, const char *password) {
     sqlite3_close(db);
     return (rc == SQLITE_DONE) ? user_exists(username) : -1;
 }
+
+int user_is_admin(const int usr_id){
+    sqlite3 *db = get_db();
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT is_admin FROM Users WHERE id = ?";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare is_admin check: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return -1;
+    }
+
+    sqlite3_bind_int(stmt, 1, usr_id);
+
+    int result = -1;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        result = sqlite3_column_int(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    return result;
+}

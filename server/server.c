@@ -63,7 +63,10 @@ void handle_client(int client_fd) {
             case REGISTER_COMMAND:{
                 int new_id = user_register(tokens[1],tokens[2]);
                 if (new_id > -1){
-                    printf("registered new user %s - %s with id %d\n",tokens[1],tokens[2],new_id);
+                    char response[100];
+                    snprintf(response, sizeof(response), "OK %d 0", new_id);
+                    send(client_fd, response, strlen(response), 0);
+                    printf("registered new user %s with id %d\n",tokens[1],new_id);
                 }else {
                     printf("error registering new user %s %s\n",tokens[1],tokens[2]);
                 }
@@ -74,9 +77,13 @@ void handle_client(int client_fd) {
                 char* pass = tokens[2];
                 const int id = user_exists(username);
                 if (id != -1 && user_login(id,pass)){
-                    char id_str[16];
-                    snprintf(id_str, sizeof(id_str), "%d", id);
-                    send(client_fd, id_str, strlen(id_str), 0);
+                    char response[100];
+                    int role = user_is_admin(id);
+                    if (role == -1){
+                        printf("Error determining role for user id %d",id);
+                    }
+                    snprintf(response, sizeof(response), "OK %d %d", id, role);
+                    send(client_fd, response, strlen(response), 0);
                 } else {
                     send(client_fd, "KO", 2, 0);
                 }

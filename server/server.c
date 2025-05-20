@@ -182,22 +182,36 @@ int parse_command(const char *input, char *tokens[]) {
     }
 
     int count = 0;
-    char *token = strtok(copy, " \t\n");
-    while (token != NULL && count < MAX_TOKENS) {
-        printf("%s\n",token);
-        tokens[count] = strdup(token); 
-        if (!tokens[count]) {
-            perror("strdup");
-            break;
+    char *p = copy;
+    while (*p && count < MAX_TOKENS) {
+        // Skip leading whitespace
+        while (*p == ' ' || *p == '\t' || *p == '\n') p++;
+
+        if (*p == '\0') break;
+
+        if (*p == '"') {
+            p++;
+            char *start = p;
+            while (*p && *p != '"') p++;
+            if (*p == '"') {
+                *p = '\0';
+                p++;
+            } else {
+                fprintf(stderr, "Warning: unterminated quote, auto-closing\n");
+            }
+            tokens[count++] = strdup(start);
+        } else {
+            char *start = p;
+            while (*p && *p != ' ' && *p != '\t' && *p != '\n') p++;
+            if (*p) *p++ = '\0';
+            tokens[count++] = strdup(start);
         }
-        count++;
-        token = strtok(NULL, " \t\n");
-        
     }
 
-    free(copy); 
+    free(copy);
     return count;
 }
+
 
 int command_type(const char *cmd) {
     if (strcmp(cmd, "CHECK") == 0) return CHECK_COMMAND;

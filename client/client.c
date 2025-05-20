@@ -8,11 +8,20 @@
 #define SOCKET_PATH "/tmp/mysocket"
 #define BUFFER_SIZE 256
 
+/*
+    send a request (as a string) to the server listening on socket and write the response in the given array.
+    Return 0 in case of error, 1 in case of success.
+*/
+int send_request(int socket, const char* request, char* response);
+
 int main() {
     int sock;
     struct sockaddr_un addr;
     char buffer[BUFFER_SIZE];
-    char input[100];
+    char request[BUFFER_SIZE];
+    char response[BUFFER_SIZE];
+    int usr_id = 0;
+    int usr_role = 0;
     char username[100];
 
     sock = socket(AF_LOCAL, SOCK_STREAM, 0);
@@ -31,7 +40,6 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Prompt for username
     printf("Enter username: ");
     if (fgets(username, sizeof(username), stdin) == NULL) {
         printf("No username input.\n");
@@ -39,95 +47,77 @@ int main() {
         return 1;
     }
 
-    // Remove trailing newline
     size_t len = strlen(username);
     if (len > 0 && username[len-1] == '\n') {
         username[len-1] = '\0';
     }
 
-    // Build the message "check user <username>"
-    snprintf(buffer, sizeof(buffer), "CHECK USER %s\n", username);
+    snprintf(request, sizeof(request), "CHECK USER %s", username);
 
-    // Send it to server
-    if (send(sock, buffer, strlen(buffer), 0) == -1) {
+    if (!send_request(sock,request,response)) {
         perror("send");
         close(sock);
         return 1;
-    }
-
-    // Wait for response from server
-    ssize_t bytes = recv(sock, buffer, sizeof(buffer) - 1, 0);
-    if (bytes <= 0) {
-        printf("Server disconnected or no response.\n");
-        close(sock);
-        return 1;
-    }
-
-    buffer[bytes] = '\0';
-    printf("Server response: %s\n", buffer);
-    printf("strcmp(buffer, LOGIN) %d\n",strcmp(buffer, "LOGIN"));
-    // Now based on server response you can proceed...
-    if (strcmp(buffer, "LOGIN") == 0) { 
+}
+    if (strcmp(response, "LOGIN") == 0) { 
         printf("Enter password: ");
-        if (fgets(input, sizeof(input), stdin) == NULL) {
-            printf("No username input.\n");
-            close(sock);
-            return 1;
-        }
-        // Remove trailing newline
-        size_t len = strlen(input);
-        if (len > 0 && input[len-1] == '\n') {
-            input[len-1] = '\0';
-        }
-        snprintf(buffer, sizeof(buffer), "LOGIN %s %s",username, input);
-        if (send(sock, buffer, strlen(buffer), 0) == -1) {
-        perror("send");
-        close(sock);
-        return 1;
-        }
-
-        // Wait for response from server
-        ssize_t bytes = recv(sock, buffer, sizeof(buffer) - 1, 0);
-        if (bytes <= 0) {
-            printf("Server disconnected or no response.\n");
-            close(sock);
-            return 1;
-        }
-
-        buffer[bytes] = '\0';
-        printf("Server response: %s\n", buffer);
-    }
-    else if (strcmp(buffer, "REGISTER") == 0) {
-        printf("New user! Choose password: ");
-        if (fgets(input, sizeof(input), stdin) == NULL) {
+        if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
             printf("No password input.\n");
             close(sock);
             return 1;
         }
         // Remove trailing newline
-        size_t len = strlen(input);
-        if (len > 0 && input[len-1] == '\n') {
-            input[len-1] = '\0';
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len-1] == '\n') {
+            buffer[len-1] = '\0';
         }
-        snprintf(buffer, sizeof(buffer), "REGISTER %s %s",username, input);
-        if (send(sock, buffer, strlen(buffer), 0) == -1) {
-        perror("send");
-        close(sock);
-        return 1;
-        }
-
-        // Wait for response from server
-        ssize_t bytes = recv(sock, buffer, sizeof(buffer) - 1, 0);
-        if (bytes <= 0) {
-            printf("Server disconnected or no response.\n");
+        snprintf(request, sizeof(request), "LOGIN %s %s",username, buffer);
+        if (!send_request(sock,request,response)) {
+            perror("send");
             close(sock);
             return 1;
         }
-
-        buffer[bytes] = '\0';
-        printf("Server response: %s\n", buffer);
+        
+    }
+    else if (strcmp(buffer, "REGISTER") == 0) {
+        printf("New user! Choose password: ");
+        if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
+            printf("No password input.\n");
+            close(sock);
+            return 1;
+        }
+        // Remove trailing newline
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len-1] == '\n') {
+            buffer[len-1] = '\0';
+        }
+        snprintf(request, sizeof(request), "REGISTER %s %s",username, buffer);
+        if (!send_request(sock,request,response)) {
+            perror("send");
+            close(sock);
+            return 1;
+        }
     }
 
     close(sock);
     return 0;
+}
+
+int send_request(int socket, const char* request, char* response){
+    printf("request: '%s'\n",request);
+    if (send(socket, request, strlen(request), 0) == -1) {
+        perror("send");
+        close(socket);
+        return 0;
+    }
+
+    ssize_t bytes = recv(socket, response, sizeof(response) - 1, 0);
+    if (bytes <= 0) {
+        printf("Server disconnected or no response.\n");
+        close(socket);
+        return 0;
+    }
+    response[bytes] = '\0';
+    printf("Server response: %s\n", response);
+    return 1;
 }

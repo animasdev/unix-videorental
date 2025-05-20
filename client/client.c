@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include "../common/common.h"
 
 #define SOCKET_PATH "/tmp/mysocket"
 #define BUFFER_SIZE 256
@@ -167,7 +168,7 @@ int main() {
         break;
     }
     default:
-        printf("Role %d not recognized!\n");
+        printf("Role %d not recognized!\n",usr_role);
         break;
     }
 
@@ -192,34 +193,6 @@ int send_request(int socket, const char* request, char* response){
     response[bytes] = '\0';
     printf("Server response: %s\n", response);
     return 1;
-}
-
-
-
-
-int parse_command(const char *input, char *tokens[]) {
-    char *copy = strdup(input);
-    if (!copy) {
-        perror("strdup");
-        return -1;
-    }
-
-    int count = 0;
-    char *token = strtok(copy, " \t\n");
-    while (token != NULL && count < MAX_TOKENS) {
-        printf("%s\n",token);
-        tokens[count] = strdup(token); 
-        if (!tokens[count]) {
-            perror("strdup");
-            break;
-        }
-        count++;
-        token = strtok(NULL, " \t\n");
-        
-    }
-
-    free(copy); 
-    return count;
 }
 
 int parse_user_response(const char* response,int* usr_id,int* usr_is_admin){

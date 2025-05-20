@@ -1,4 +1,3 @@
-// server_local_fork.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +7,7 @@
 #include <signal.h>
 #include "userdb.h"
 #include "videodb.h"
+#include "../common/common.h"
 #include "db.h"
 
 #define SOCKET_PATH "/tmp/mysocket"
@@ -174,43 +174,7 @@ int main() {
     return 0;
 }
 
-int parse_command(const char *input, char *tokens[]) {
-    char *copy = strdup(input);
-    if (!copy) {
-        perror("strdup");
-        return -1;
-    }
 
-    int count = 0;
-    char *p = copy;
-    while (*p && count < MAX_TOKENS) {
-        // Skip leading whitespace
-        while (*p == ' ' || *p == '\t' || *p == '\n') p++;
-
-        if (*p == '\0') break;
-
-        if (*p == '"') {
-            p++;
-            char *start = p;
-            while (*p && *p != '"') p++;
-            if (*p == '"') {
-                *p = '\0';
-                p++;
-            } else {
-                fprintf(stderr, "Warning: unterminated quote, auto-closing\n");
-            }
-            tokens[count++] = strdup(start);
-        } else {
-            char *start = p;
-            while (*p && *p != ' ' && *p != '\t' && *p != '\n') p++;
-            if (*p) *p++ = '\0';
-            tokens[count++] = strdup(start);
-        }
-    }
-
-    free(copy);
-    return count;
-}
 
 
 int command_type(const char *cmd) {

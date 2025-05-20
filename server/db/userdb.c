@@ -12,6 +12,7 @@ int user_exists(const char *username) {
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
         return -1;
     }
 
@@ -23,6 +24,7 @@ int user_exists(const char *username) {
     }
 
     sqlite3_finalize(stmt);
+    sqlite3_close(db);
     return result;
 }
 
@@ -33,6 +35,7 @@ int user_login(const int usr_id, const char *password) {
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Failed to prepare login check: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
         return 0;
     }
 
@@ -47,6 +50,7 @@ int user_login(const int usr_id, const char *password) {
     }
 
     sqlite3_finalize(stmt);
+    sqlite3_close(db);
     return result;
 }
 
@@ -61,14 +65,15 @@ int user_register(const char *username, const char *password) {
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Failed to prepare insert: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, password, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, password, -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-
+    sqlite3_close(db);
     return (rc == SQLITE_DONE) ? user_exists(username) : -1;
 }

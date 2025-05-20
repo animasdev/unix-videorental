@@ -2,21 +2,14 @@
 #include <stdio.h>
 
 sqlite3 *get_db() {
-    static sqlite3 *db = NULL;
-
-    if (!db) {
+    sqlite3 *db = NULL;
         if (sqlite3_open("../db/videoteca.db", &db) != SQLITE_OK) {
             fprintf(stderr, "Can't open DB: %s\n", sqlite3_errmsg(db));
             return NULL;
         }
-    }
     return db;
 }
 
-void close_db() {
-    sqlite3 *db = get_db();
-    if (db) sqlite3_close(db);
-}
 
 int setup_db() {
     const sqlite3 *db = get_db();
@@ -50,12 +43,14 @@ int setup_db() {
     if (sqlite3_prepare_v2(db, create_users_table, -1, &stmt, 0) != SQLITE_OK)
     {
         fprintf(stdout, "Failed to prepare create Users table: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
         return 0;
     }
     if (sqlite3_step(stmt) != SQLITE_DONE)
     {
         fprintf(stdout, "Failed to create Users table: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
+        sqlite3_close(db);
         return 0;
     }
     sqlite3_finalize(stmt);
@@ -64,12 +59,14 @@ int setup_db() {
     if (sqlite3_prepare_v2(db, create_videos_table, -1, &stmt, 0) != SQLITE_OK)
     {
         fprintf(stdout, "Failed to prepare create Videos table: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
         return 0;
     }
     if (sqlite3_step(stmt) != SQLITE_DONE)
     {
         fprintf(stdout, "Failed to create Videos table: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
+        sqlite3_close(db);
         return 0;
     }
     sqlite3_finalize(stmt);
@@ -77,15 +74,17 @@ int setup_db() {
     if (sqlite3_prepare_v2(db, create_rentals_table, -1, &stmt, 0) != SQLITE_OK)
     {
         fprintf(stdout, "Failed to prepare create Rentals table: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
         return 0;
     }
     if (sqlite3_step(stmt) != SQLITE_DONE)
     {
         fprintf(stdout, "Failed to create Rentals table: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
+        sqlite3_close(db);
         return 0;
     }
     sqlite3_finalize(stmt);
-    sqlite3_close_v2(db);
+    sqlite3_close(db);
     return 1;
 }

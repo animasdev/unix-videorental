@@ -3,6 +3,6 @@
 
 #include <sqlite3.h>
 
-int video_insert(const char *title, const int copies);
+int video_insert(const char *title, const int copies, char* errors);
 
 #endif 

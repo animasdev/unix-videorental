@@ -14,6 +14,7 @@
 #define BUFFER_SIZE 1024
 #define MAX_TOKENS 100 
 #define MAX_TOKEN_LEN 100 
+#define ERR_SIZE 256
 
 #define CHECK_COMMAND 1
 #define LOGIN_COMMAND 2
@@ -30,7 +31,7 @@ void cleanup(int signum);
 int parse_command(const char *input, char *tokens[]);
 int command_type(const char *cmd);
 int db_setup();
-int handle_movie_command(const char** tokens);
+int handle_movie_command(const char** tokens, char* response);
 
 void handle_client(int client_fd) {
     char buffer[BUFFER_SIZE];
@@ -93,8 +94,12 @@ void handle_client(int client_fd) {
                 break;
             }
             case MOVIE_COMMAND: {
-                if (!handle_movie_command(tokens)){
+                char response[ERR_SIZE];
+                if (!handle_movie_command(tokens,response)){
                     printf("Error handling movie subcommand\n");
+                } else {
+                    printf("response: '%s'\n",response);
+                    send(client_fd, response, strlen(response), 0);
                 }
                 break;
             }
@@ -246,12 +251,22 @@ int parse_movie_subcommand(const char* subcmd){
 
     return 0;
 }
-int handle_movie_command(const char** tokens){
+int handle_movie_command(const char** tokens, char* response){
     switch(parse_movie_subcommand(tokens[1])) {
         case ADD_SUBCOMAND: {
             char* title = tokens[2];
+            printf("title '%s'\n",title);
+            char errors[ERR_SIZE];
             int nr = atoi(tokens[3]);
-            return video_insert(title,nr);
+            int id = video_insert(title,nr,errors);
+            printf("errors '%s'\n",errors);
+            if (id > -1){
+                snprintf(response, ERR_SIZE, "OK %d", id);
+            } else {
+                printf("errors '%s'\n",errors);
+                snprintf(response, ERR_SIZE, "KO \"%s\"",errors);
+            }
+            return 1;
             break;
         }
         default: {

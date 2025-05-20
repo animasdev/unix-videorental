@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <sqlite3.h>
 #include "videodb.h"
-
+#define ERR_SIZE 256
 extern sqlite3 *get_db(); 
-int video_insert(const char *title, const int copies) {
+int video_insert(const char *title, const int copies, char* errors) {
     sqlite3 *db = get_db();
     sqlite3_stmt *stmt;
     const char *sql = "INSERT INTO Videos (title, available_copies) VALUES (?, ?)";
@@ -11,7 +11,7 @@ int video_insert(const char *title, const int copies) {
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Failed to prepare insert: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
-        return 0;
+        return -1;
     }
 
     sqlite3_bind_text(stmt, 1, title, -1, SQLITE_TRANSIENT);
@@ -19,6 +19,15 @@ int video_insert(const char *title, const int copies) {
 
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        char* err= sqlite3_errmsg(db);
+        snprintf(errors, ERR_SIZE, "%s",err);
+        fprintf(stderr, "Insert failed: %s\n", err);
+        sqlite3_close(db);
+        return -1;
+    }
+
+    int last_id = (int) sqlite3_last_insert_rowid(db);
     sqlite3_close(db);
-    return 1;
+    return last_id;
 }

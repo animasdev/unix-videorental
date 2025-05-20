@@ -4,3 +4,4 @@ server/sqliteTest
 client
 server
 db/videoteca.db
+videoteca.db

@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "*.gohtml": "html",
+        "stdlib.h": "c",
+        "userdb.h": "c",
+        "sqlite3.h": "c",
+        "common.h": "c",
+        "videodb.h": "c"
+    }
+}

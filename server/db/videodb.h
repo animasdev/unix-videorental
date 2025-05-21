@@ -5,5 +5,7 @@
 #include "../../common/common.h"
 
 int video_insert(const char *title, const int copies, char* errors);
-int find_videos_by_title(const char* search_term, struct Video* results[], int max_results);
+int find_videos_by_title(const char* search_term,Video* results[], int max_results);
+Video* find_video_by_id(const int id);
+int rent_video(const char* username,const int movie_id);
 #endif 

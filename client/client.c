@@ -11,6 +11,8 @@
 #define MAX_TOKENS 100 
 #define ADMIN_ROLE 1
 #define USER_ROLE 0
+#define RENTABLE 5
+
 /*
     send a request (as a string) to the server listening on socket and write the response in the given array.
     Return 0 in case of error, 1 in case of success.
@@ -18,7 +20,7 @@
 int send_request(int socket, const char* request, char* response);
 int parse_user_response(const char* response,int* usr_id,int* usr_is_admin);
 int parse_add_movie_response(const char* response, int* movie_id);
-struct Video* parse_search_movie_response_item(const char* response);
+Video* parse_search_movie_response_item(const char* response);
 int parse_search_movie_response(const char* response);
 
 int main() {
@@ -221,7 +223,7 @@ int main() {
                                     close(sock);
                                     return 1;
                                 }
-                                struct Video* vid = parse_search_movie_response_item(item_resp);
+                                Video* vid = parse_search_movie_response_item(item_resp);
                                 if (vid == NULL){
                                     printf("Error parsing video number %d\n",i);
                                 } else {
@@ -235,9 +237,73 @@ int main() {
                         }
                         break;
                     }
-                    case '2':
-                        printf("You chose option 2 (fff)\n");
+                    case '2':{
+                        int wanted[RENTABLE];
+                        int current = 0;
+                        printf("You can rent %d movies at once. Insert 'q' to stop adding\n",RENTABLE);
+                        while (current < RENTABLE){
+                            printf("Enter number of movie to add it to the cart: ");
+                            if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
+                                printf("No number input.\n");
+                                close(sock);
+                                return 1;
+                            }
+                            size_t len = strlen(buffer);
+                            if (len > 0 && buffer[len-1] == '\n') {
+                                buffer[len-1] = '\0';
+                            }
+                            if (strcmp(buffer,"q") == 0){
+                                break;
+                            }else {
+                                printf("inserted %d\n",atoi(buffer));
+                                wanted[current]=atoi(buffer);
+                                printf("inserted %d\n",wanted[current]);
+                                current++;
+                            }
+                        }
+                        if (current == 0){
+                            printf("No movies inserted.\n");
+                            break;
+                        }
+                        printf("\nYour current cart:\n");
+                        for (int i=0; i<current; i++){
+                            snprintf(request, sizeof(request), "MOVIE GET %d",wanted[i]);
+                            if (!send_request(sock,request,response)) {
+                                perror("send");
+                                close(sock);
+                                return 1;
+                            }
+                        }
+                        printf("Options:\n");
+                        printf("1. Remove movie from cart\n");
+                        printf("2. Send rent request for full cart\n");
+                        printf("insert another character to go back\n");
+                        printf("Enter your choice: ");
+                        if (fgets(input, sizeof(input), stdin) == NULL) {
+                            printf("Input error.\n");
+                            continue;
+                        }
+                        input[strcspn(input, "\n")] = 0;
+                        switch(input[0]){
+                            case '2': {
+                                for (int i=0; i<current; i++){
+                                    snprintf(request, sizeof(request), "RENT ADD %d %d",usr_id,wanted[i]);
+                                    if (!send_request(sock,request,response)) {
+                                        perror("send");
+                                        close(sock);
+                                        return 1;
+                                    }
+                                }
+                                break;
+                            }
+                            case '1': {
+                                break;
+                            }
+                        }
+                        
+                        
                         break;
+                    }
                     case 'q':
                     case 'Q':
                         exit(0);
@@ -325,9 +391,9 @@ int parse_search_movie_response(const char* response) {
 
 
 
-struct Video* parse_search_movie_response_item(const char* response) {
+Video* parse_search_movie_response_item(const char* response) {
     char* tokens[MAX_TOKENS];
-    struct Video* vid = malloc(sizeof(struct Video));
+    Video* vid = malloc(sizeof(Video));
     if (parse_command(response,tokens)>0) {
         const char* title = tokens[1];
         vid->title = strdup((const char*)title);

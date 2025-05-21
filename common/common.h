@@ -2,12 +2,12 @@
 #define COMMON_H
 
 
-struct Video {
+typedef struct {
     int id;
     char* title;
     int av_copies; //available copies
     int rt_copies; //rented out copies
-};
+} Video;
 
 int parse_command(const char *input, char *tokens[]);
 

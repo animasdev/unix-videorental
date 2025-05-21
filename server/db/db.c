@@ -12,7 +12,7 @@ sqlite3 *get_db() {
 
 
 int setup_db() {
-    const sqlite3 *db = get_db();
+    sqlite3 *db = get_db();
     const char *create_users_table =
         "CREATE TABLE IF NOT EXISTS Users ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "

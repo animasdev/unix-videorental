@@ -32,7 +32,7 @@ void cleanup(int signum);
 int parse_command(const char *input, char *tokens[]);
 int command_type(const char *cmd);
 int db_setup();
-int handle_movie_command(const char** tokens, int client_fd);
+int handle_movie_command(char** tokens, int client_fd);
 
 void handle_client(int client_fd) {
     char buffer[BUFFER_SIZE];
@@ -97,8 +97,17 @@ void handle_client(int client_fd) {
             case MOVIE_COMMAND: {
                 if (!handle_movie_command(tokens,client_fd)){
                     printf("Error handling movie subcommand\n");
-                } else {
                 }
+                break;
+            }
+            case RENT_COMMAND: {
+                char response[100];
+                User *user=find_user_by_id(atoi(tokens[2]));
+                Video *video = find_video_by_id(atoi(tokens[3]));
+                printf("User %s wants to rent movie %s\n",user->username,video->title);
+                int last_id = rent_video(user->username,video->id);
+                snprintf(response, sizeof(response), "OK %d", last_id);
+                send(client_fd, response, sizeof(response), 0);
                 break;
             }
             default:{
@@ -241,17 +250,19 @@ int db_setup(){
 #define PUT_SUBCOMAND 2
 #define DEL_SUBCOMAND 3
 #define SEARCH_SUBCOMMAND 4
-
+#define GET_SUBCOMMAND 5
 
 int parse_movie_subcommand(const char* subcmd){
     if (strcmp(subcmd, "ADD") == 0) return ADD_SUBCOMAND;
     if (strcmp(subcmd, "PUT") == 0) return PUT_SUBCOMAND;
     if (strcmp(subcmd, "DEL") == 0) return DEL_SUBCOMAND;
     if (strcmp(subcmd, "SEARCH") == 0) return SEARCH_SUBCOMMAND;
+    if (strcmp(subcmd, "GET") == 0) return GET_SUBCOMMAND;
+
 
     return 0;
 }
-int handle_movie_command(const char** tokens, int client_fd){
+int handle_movie_command(char** tokens, int client_fd){
     char response[ERR_SIZE];
     switch(parse_movie_subcommand(tokens[1])) {
         case ADD_SUBCOMAND: {
@@ -274,7 +285,7 @@ int handle_movie_command(const char** tokens, int client_fd){
         case SEARCH_SUBCOMMAND: {
             char* query = tokens[2];
             printf("query '%s'\n",query);
-            struct Video* results[MAX_QUERY_RESULTS];
+            Video* results[MAX_QUERY_RESULTS];
             int found = find_videos_by_title(query, results, MAX_QUERY_RESULTS);
 
             if (found == -1 ){
@@ -285,7 +296,6 @@ int handle_movie_command(const char** tokens, int client_fd){
             send(client_fd, response, strlen(response), 0);
             for (int i = 0; i < found; i++) {
                 char ack_buf[32];
-                // wait for client to request next
                 int n = recv(client_fd, ack_buf, sizeof(ack_buf) - 1, 0);
                 if (n <= 0) break;
                 ack_buf[n] = '\0';
@@ -297,6 +307,15 @@ int handle_movie_command(const char** tokens, int client_fd){
                 free(results[i]);
             }
 
+            return 1;
+            break;
+        }
+        case GET_SUBCOMMAND: {
+            int id = atoi(tokens[2]);
+            Video* video = find_video_by_id(id);
+            snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",video->id,video->title, video->av_copies, video->rt_copies);
+            printf("%s\n",response);
+            send(client_fd, response, strlen(response), 0);
             return 1;
             break;
         }

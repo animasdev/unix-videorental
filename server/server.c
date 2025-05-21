@@ -15,6 +15,7 @@
 #define MAX_TOKENS 100 
 #define MAX_TOKEN_LEN 100 
 #define ERR_SIZE 256
+#define MAX_QUERY_RESULTS 100
 
 #define CHECK_COMMAND 1
 #define LOGIN_COMMAND 2
@@ -31,7 +32,7 @@ void cleanup(int signum);
 int parse_command(const char *input, char *tokens[]);
 int command_type(const char *cmd);
 int db_setup();
-int handle_movie_command(const char** tokens, char* response);
+int handle_movie_command(const char** tokens, int client_fd);
 
 void handle_client(int client_fd) {
     char buffer[BUFFER_SIZE];
@@ -94,12 +95,9 @@ void handle_client(int client_fd) {
                 break;
             }
             case MOVIE_COMMAND: {
-                char response[ERR_SIZE];
-                if (!handle_movie_command(tokens,response)){
+                if (!handle_movie_command(tokens,client_fd)){
                     printf("Error handling movie subcommand\n");
                 } else {
-                    printf("response: '%s'\n",response);
-                    send(client_fd, response, strlen(response), 0);
                 }
                 break;
             }
@@ -242,16 +240,19 @@ int db_setup(){
 #define ADD_SUBCOMAND 1
 #define PUT_SUBCOMAND 2
 #define DEL_SUBCOMAND 3
+#define SEARCH_SUBCOMMAND 4
 
 
 int parse_movie_subcommand(const char* subcmd){
     if (strcmp(subcmd, "ADD") == 0) return ADD_SUBCOMAND;
     if (strcmp(subcmd, "PUT") == 0) return PUT_SUBCOMAND;
     if (strcmp(subcmd, "DEL") == 0) return DEL_SUBCOMAND;
+    if (strcmp(subcmd, "SEARCH") == 0) return SEARCH_SUBCOMMAND;
 
     return 0;
 }
-int handle_movie_command(const char** tokens, char* response){
+int handle_movie_command(const char** tokens, int client_fd){
+    char response[ERR_SIZE];
     switch(parse_movie_subcommand(tokens[1])) {
         case ADD_SUBCOMAND: {
             char* title = tokens[2];
@@ -266,6 +267,36 @@ int handle_movie_command(const char** tokens, char* response){
                 printf("errors '%s'\n",errors);
                 snprintf(response, ERR_SIZE, "KO \"%s\"",errors);
             }
+            send(client_fd, response, strlen(response), 0);
+            return 1;
+            break;
+        }
+        case SEARCH_SUBCOMMAND: {
+            char* query = tokens[2];
+            printf("query '%s'\n",query);
+            struct Video* results[MAX_QUERY_RESULTS];
+            int found = find_videos_by_title(query, results, MAX_QUERY_RESULTS);
+
+            if (found == -1 ){
+                snprintf(response, ERR_SIZE, "KO");    
+            } else {
+                snprintf(response, ERR_SIZE, "OK %d",found);
+            }
+            send(client_fd, response, strlen(response), 0);
+            for (int i = 0; i < found; i++) {
+                char ack_buf[32];
+                // wait for client to request next
+                int n = recv(client_fd, ack_buf, sizeof(ack_buf) - 1, 0);
+                if (n <= 0) break;
+                ack_buf[n] = '\0';
+                if (strncmp(ack_buf, "NEXT", 4) != 0) break;
+                snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",results[i]->id,results[i]->title, results[i]->av_copies, results[i]->rt_copies);
+                printf("%s\n",response);
+                send(client_fd, response, strlen(response), 0);
+                free(results[i]->title);
+                free(results[i]);
+            }
+
             return 1;
             break;
         }

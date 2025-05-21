@@ -18,6 +18,9 @@
 int send_request(int socket, const char* request, char* response);
 int parse_user_response(const char* response,int* usr_id,int* usr_is_admin);
 int parse_add_movie_response(const char* response, int* movie_id);
+struct Video* parse_search_movie_response_item(const char* response);
+int parse_search_movie_response(const char* response);
+
 int main() {
     int sock;
     struct sockaddr_un addr;
@@ -174,6 +177,74 @@ int main() {
         break;
     }
     case USER_ROLE: {
+        char input[10];
+            while(1) {
+                printf("\nChoose an option:\n");
+                printf("1. Search movie\n");
+                printf("2. Rent movie\n");
+                printf("3. Return movie\n");
+                printf("q. Quit\n");
+                printf("Enter your choice: ");
+                if (fgets(input, sizeof(input), stdin) == NULL) {
+                    printf("Input error.\n");
+                    continue;
+                }
+                input[strcspn(input, "\n")] = 0;
+                if (strcmp(input, "q") == 0 || strcmp(input, "Q") == 0) {
+                    printf("Exiting...\n");
+                }
+                switch (input[0]) {
+                    case '1': {
+                        int nr = 0;
+                        printf("Enter word to search in the title: ");
+                        if (fgets(title, sizeof(title), stdin) == NULL) {
+                            printf("No title input.\n");
+                            close(sock);
+                            return 1;
+                        }
+                        size_t len = strlen(title);
+                        if (len > 0 && title[len-1] == '\n') {
+                            title[len-1] = '\0';
+                        }
+                        snprintf(request, sizeof(request), "MOVIE SEARCH %s",title);
+                        if (!send_request(sock,request,response)) {
+                            perror("send");
+                            close(sock);
+                            return 1;
+                        }else{
+                            char item_resp[BUFFER_SIZE];
+                            int found = parse_search_movie_response(response);
+                            printf("Found %d results:\n",found);
+                            for (int i = 0; i < found; ++i) {
+                                if (!send_request(sock,"NEXT",item_resp)) {
+                                    perror("send");
+                                    close(sock);
+                                    return 1;
+                                }
+                                struct Video* vid = parse_search_movie_response_item(item_resp);
+                                if (vid == NULL){
+                                    printf("Error parsing video number %d\n",i);
+                                } else {
+                                    printf("%d. %s available copies: %d - lented copies: %d\n",
+                                        vid->id,vid->title,vid->av_copies,vid->rt_copies);
+                                    free(vid->title);
+                                    free(vid);
+                                }
+                            }
+                            printf("ok\n");
+                        }
+                        break;
+                    }
+                    case '2':
+                        printf("You chose option 2 (fff)\n");
+                        break;
+                    case 'q':
+                    case 'Q':
+                        exit(0);
+                    default:
+                        printf("Invalid choice. Please try again.\n");
+                }
+            }
         break;
     }
     default:
@@ -205,7 +276,7 @@ int send_request(int socket, const char* request, char* response){
 }
 
 int parse_user_response(const char* response,int* usr_id,int* usr_is_admin){
-    const char** tokens;
+    char** tokens;
     if (parse_command(response,tokens)>0){
         if (strcmp(tokens[0], "OK") == 0){
             const int id = atoi(tokens[1]);
@@ -219,7 +290,7 @@ int parse_user_response(const char* response,int* usr_id,int* usr_is_admin){
 }
 
 int parse_add_movie_response(const char* response, int* movie_id) {
-    const char* tokens[MAX_TOKENS];
+    char* tokens[MAX_TOKENS];
     if (parse_command(response,tokens)>0){
         if (strcmp(tokens[0], "OK") == 0){
             const int id = atoi(tokens[1]);
@@ -230,4 +301,41 @@ int parse_add_movie_response(const char* response, int* movie_id) {
         }
     }
     return 0;
+}
+
+/*
+Parses the response for the search movie request. The expected response is 'OK n'
+where n is the number of records found, which gets returned to the caller.
+If there was an error it returs -1.
+*/
+int parse_search_movie_response(const char* response) {
+    char* tokens[MAX_TOKENS];
+    if (parse_command(response,tokens)>0){
+        printf("token[0]: %s\n",tokens[0]);
+        printf("token ok?: %d\n",strcmp(tokens[0], "OK") == 0);
+        if (strcmp(tokens[0], "OK") == 0){
+            return atoi(tokens[1]);
+        }else{
+            printf("Error: %s\n",tokens[1]);
+        }
+    }
+    return -1;
+}
+
+
+
+
+struct Video* parse_search_movie_response_item(const char* response) {
+    char* tokens[MAX_TOKENS];
+    struct Video* vid = malloc(sizeof(struct Video));
+    if (parse_command(response,tokens)>0) {
+        const char* title = tokens[1];
+        vid->title = strdup((const char*)title);
+        vid->id = atoi(tokens[0]);
+        vid->av_copies = atoi(tokens[2]);
+        vid->rt_copies = atoi(tokens[3]);
+        return vid;
+    }
+    
+    return NULL;
 }

@@ -22,6 +22,7 @@ int parse_user_response(const char* response,int* usr_id,int* usr_is_admin);
 int parse_add_movie_response(const char* response, int* movie_id);
 Video* parse_search_movie_response_item(const char* response);
 int parse_search_movie_response(const char* response);
+int parse_rent_movie_response(const char* response, char* due_date);
 
 int main() {
     int sock;
@@ -265,14 +266,18 @@ int main() {
                             printf("No movies inserted.\n");
                             break;
                         }
+                        cart:
                         printf("\nYour current cart:\n");
                         for (int i=0; i<current; i++){
+                            if (wanted[i] == -1) continue;
                             snprintf(request, sizeof(request), "MOVIE GET %d",wanted[i]);
                             if (!send_request(sock,request,response)) {
                                 perror("send");
                                 close(sock);
                                 return 1;
                             }
+                            const Video* video=parse_search_movie_response_item(response);
+                            printf("Nr.: %d Title: \"%s\"\n",i,video->title);
                         }
                         printf("Options:\n");
                         printf("1. Remove movie from cart\n");
@@ -285,18 +290,42 @@ int main() {
                         }
                         input[strcspn(input, "\n")] = 0;
                         switch(input[0]){
+                            case '1': {
+                                printf("Enter the Nr. to remove: ");
+                                if (fgets(input, sizeof(input), stdin) == NULL) {
+                                    printf("Input error.\n");
+                                    continue;
+                                }
+                                int nr = atoi(input);
+                                if (nr>current){
+                                    printf("Invalid choice\n");
+                                }else{
+                                    wanted[nr]=-1;
+                                    printf("Removed!\n");
+                                    goto cart;
+                                }
+                                break;
+                            }
                             case '2': {
                                 for (int i=0; i<current; i++){
+                                    if (wanted[i] == -1) continue;
                                     snprintf(request, sizeof(request), "RENT ADD %d %d",usr_id,wanted[i]);
                                     if (!send_request(sock,request,response)) {
                                         perror("send");
                                         close(sock);
                                         return 1;
                                     }
+                                    char due_date[BUFFER_SIZE];
+                                    int rent_id = parse_rent_movie_response(response,due_date);
+                                    snprintf(request, sizeof(request), "MOVIE GET %d",wanted[i]);
+                                    if (!send_request(sock,request,response)) {
+                                        perror("send");
+                                        close(sock);
+                                        return 1;
+                                    }
+                                    const Video* video=parse_search_movie_response_item(response);
+                                    printf("Rented \"%s\" untill %s\n",video->title,due_date);
                                 }
-                                break;
-                            }
-                            case '1': {
                                 break;
                             }
                         }
@@ -389,7 +418,16 @@ int parse_search_movie_response(const char* response) {
 }
 
 
+int parse_rent_movie_response(const char* response, char* due_date) {
+    char* tokens[MAX_TOKENS];
 
+    if (parse_command(response,tokens)>0) {
+        const int rent_id = atoi(tokens[1]);
+        snprintf(due_date, BUFFER_SIZE, "%s", tokens[2]);
+        return rent_id;
+    }
+    return -1;
+}
 
 Video* parse_search_movie_response_item(const char* response) {
     char* tokens[MAX_TOKENS];

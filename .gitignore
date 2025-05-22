@@ -1,7 +1,7 @@
 .DS_Store
 server/sqliteTest
-client
-server
+client/client
+server/server
 db/videoteca.db
 videoteca.db
 note.md

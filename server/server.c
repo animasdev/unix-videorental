@@ -106,7 +106,10 @@ void handle_client(int client_fd) {
                 Video *video = find_video_by_id(atoi(tokens[3]));
                 printf("User %s wants to rent movie %s\n",user->username,video->title);
                 int last_id = rent_video(user->username,video->id);
-                snprintf(response, sizeof(response), "OK %d", last_id);
+                Rental *rental = find_rental_by_id(last_id);
+                printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
+                snprintf(response, sizeof(response), "OK %d %s", last_id,rental->due_date);
+                printf("Response: %s\n",response);
                 send(client_fd, response, sizeof(response), 0);
                 break;
             }

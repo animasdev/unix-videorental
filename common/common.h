@@ -5,8 +5,8 @@
 typedef struct {
     int id;
     char* title;
-    int av_copies; //available copies
-    int rt_copies; //rented out copies
+    int av_copies;  //available copies
+    int is_rentable;//is it possible to rent
 } Video;
 
 typedef struct {
@@ -15,6 +15,7 @@ typedef struct {
     char* username;
     char* due_date; 
     char* start_date; 
+    char* end_date; 
 } Rental;
 
 int parse_command(const char *input, char *tokens[]);

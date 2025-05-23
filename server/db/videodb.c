@@ -43,8 +43,10 @@ int find_videos_by_title(const char* search_term, Video* results[], int max_resu
     sqlite3* db = get_db();
     sqlite3_stmt* stmt;
     int count = 0;
-    const char* sql = "SELECT id,title, available_copies, borrowed_copies "
-                      "FROM Videos WHERE title LIKE ?";
+    const char* sql = "SELECT v.id, v.title , v.available_copies ,count(r.id)<v.available_copies as rentable FROM Videos v "
+                      "left join Rentals r on r.video_id =v.id "
+                      "WHERE title LIKE ? "
+                      "group by v.id"; 
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Failed to prepare query: %s\n", sqlite3_errmsg(db));
@@ -68,7 +70,7 @@ int find_videos_by_title(const char* search_term, Video* results[], int max_resu
         vid->title = strdup((const char*)title);
         vid->id = sqlite3_column_int(stmt, 0);
         vid->av_copies = sqlite3_column_int(stmt, 2);
-        vid->rt_copies = sqlite3_column_int(stmt, 3);
+        vid->is_rentable = sqlite3_column_int(stmt, 3);
 
         results[count++] = vid;
     }
@@ -81,8 +83,10 @@ int find_videos_by_title(const char* search_term, Video* results[], int max_resu
 Video* find_video_by_id(const int id) {
     sqlite3* db = get_db();
     sqlite3_stmt* stmt;
-    const char* sql = "SELECT id,title, available_copies, borrowed_copies "
-                      "FROM Videos WHERE id = ?";
+    const char* sql = "SELECT v.id, v.title , v.available_copies ,count(r.id)<v.available_copies as rentable FROM Videos v "
+                      "left join Rentals r on r.video_id =v.id "
+                      "WHERE v.id = ? "
+                      "group by v.id"; 
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Failed to prepare query: %s\n", sqlite3_errmsg(db));
@@ -108,7 +112,8 @@ Video* find_video_by_id(const int id) {
         vid->title = strdup((const char*)title);
         vid->id = sqlite3_column_int(stmt, 0);
         vid->av_copies = sqlite3_column_int(stmt, 2);
-        vid->rt_copies = sqlite3_column_int(stmt, 3);
+        vid->is_rentable = sqlite3_column_int(stmt, 3);
+
     }
     sqlite3_finalize(stmt);
     sqlite3_close(db);

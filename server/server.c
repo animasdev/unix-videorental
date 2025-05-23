@@ -105,10 +105,14 @@ void handle_client(int client_fd) {
                 User *user=find_user_by_id(atoi(tokens[2]));
                 Video *video = find_video_by_id(atoi(tokens[3]));
                 printf("User %s wants to rent movie %s\n",user->username,video->title);
-                int last_id = rent_video(user->username,video->id);
-                Rental *rental = find_rental_by_id(last_id);
-                printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
-                snprintf(response, sizeof(response), "OK %d %s", last_id,rental->due_date);
+                if (video->is_rentable){
+                    int last_id = rent_video(user->username,video->id);
+                    Rental *rental = find_rental_by_id(last_id);
+                    printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
+                    snprintf(response, sizeof(response), "OK %d %s", last_id,rental->due_date);
+                } else {
+                    snprintf(response, sizeof(response), "KO");
+                }
                 printf("Response: %s\n",response);
                 send(client_fd, response, sizeof(response), 0);
                 break;
@@ -303,7 +307,7 @@ int handle_movie_command(char** tokens, int client_fd){
                 if (n <= 0) break;
                 ack_buf[n] = '\0';
                 if (strncmp(ack_buf, "NEXT", 4) != 0) break;
-                snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",results[i]->id,results[i]->title, results[i]->av_copies, results[i]->rt_copies);
+                snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",results[i]->id,results[i]->title, results[i]->av_copies,results[i]->is_rentable);
                 printf("%s\n",response);
                 send(client_fd, response, strlen(response), 0);
                 free(results[i]->title);
@@ -316,7 +320,7 @@ int handle_movie_command(char** tokens, int client_fd){
         case GET_SUBCOMMAND: {
             int id = atoi(tokens[2]);
             Video* video = find_video_by_id(id);
-            snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",video->id,video->title, video->av_copies, video->rt_copies);
+            snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",video->id,video->title, video->av_copies,video->is_rentable);
             printf("%s\n",response);
             send(client_fd, response, strlen(response), 0);
             return 1;

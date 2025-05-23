@@ -24,8 +24,7 @@ int setup_db() {
         "CREATE TABLE IF NOT EXISTS Videos ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "title TEXT UNIQUE NOT NULL, "
-        "available_copies INTEGER NOT NULL, "
-        "borrowed_copies INTEGER NOT NULL DEFAULT 0);";
+        "available_copies INTEGER NOT NULL);";
 
     const char *create_rentals_table =
         "CREATE TABLE IF NOT EXISTS Rentals ("
@@ -34,6 +33,7 @@ int setup_db() {
         "username TEXT NOT NULL, "
         "rented_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
         "due_date TIMESTAMP NOT NULL, "
+        "returned_at TIMESTAMP, "
         "FOREIGN KEY(video_id) REFERENCES Videos(id), "
         "FOREIGN KEY(username) REFERENCES Users(username));";
 

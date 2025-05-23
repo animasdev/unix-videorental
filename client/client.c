@@ -228,8 +228,8 @@ int main() {
                                 if (vid == NULL){
                                     printf("Error parsing video number %d\n",i);
                                 } else {
-                                    printf("%d. %s available copies: %d - lented copies: %d\n",
-                                        vid->id,vid->title,vid->av_copies,vid->rt_copies);
+                                    printf("%d. %s currently available?: %s \n",
+                                        vid->id,vid->title,vid->is_rentable == 1 ? "yes" : "no");
                                     free(vid->title);
                                     free(vid);
                                 }
@@ -316,6 +316,10 @@ int main() {
                                         return 1;
                                     }
                                     char due_date[BUFFER_SIZE];
+                                    if (strcmp(response,"KO") == 0){
+                                        printf("The movie with id %d is not available anymore!",wanted[i]);
+                                        continue;
+                                    }
                                     int rent_id = parse_rent_movie_response(response,due_date);
                                     snprintf(request, sizeof(request), "MOVIE GET %d",wanted[i]);
                                     if (!send_request(sock,request,response)) {
@@ -437,7 +441,7 @@ Video* parse_search_movie_response_item(const char* response) {
         vid->title = strdup((const char*)title);
         vid->id = atoi(tokens[0]);
         vid->av_copies = atoi(tokens[2]);
-        vid->rt_copies = atoi(tokens[3]);
+        vid->is_rentable = atoi(tokens[3]);
         return vid;
     }
     

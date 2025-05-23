@@ -240,6 +240,7 @@ int main() {
                     }
                     case '2':{
                         int wanted[RENTABLE];
+                        Video cart[RENTABLE];
                         int current = 0;
                         printf("You can rent %d movies at once. Insert 'q' to stop adding\n",RENTABLE);
                         while (current < RENTABLE){
@@ -277,6 +278,7 @@ int main() {
                                 return 1;
                             }
                             const Video* video=parse_search_movie_response_item(response);
+                            cart[i]=*video;
                             printf("Nr.: %d Title: \"%s\"\n",i,video->title);
                         }
                         printf("Options:\n");
@@ -301,7 +303,7 @@ int main() {
                                     printf("Invalid choice\n");
                                 }else{
                                     wanted[nr]=-1;
-                                    printf("Removed!\n");
+                                    printf("Removed \"%s\" from cart!\n",cart[nr].title);
                                     goto cart;
                                 }
                                 break;
@@ -317,18 +319,11 @@ int main() {
                                     }
                                     char due_date[BUFFER_SIZE];
                                     if (strcmp(response,"KO") == 0){
-                                        printf("The movie with id %d is not available anymore!",wanted[i]);
+                                        printf("The movie \"%s\" is not available anymore!",cart[i].title);
                                         continue;
                                     }
                                     int rent_id = parse_rent_movie_response(response,due_date);
-                                    snprintf(request, sizeof(request), "MOVIE GET %d",wanted[i]);
-                                    if (!send_request(sock,request,response)) {
-                                        perror("send");
-                                        close(sock);
-                                        return 1;
-                                    }
-                                    const Video* video=parse_search_movie_response_item(response);
-                                    printf("Rented \"%s\" untill %s\n",video->title,due_date);
+                                    printf("Rented \"%s\" untill %s\n",cart[i].title,due_date);
                                 }
                                 break;
                             }

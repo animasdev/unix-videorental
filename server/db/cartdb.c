@@ -71,3 +71,29 @@ int find_cart_by_username(const char* username, Cart* cart_items[], int max_resu
     sqlite3_close(db);
     return count;
 }
+int cart_delete_by_id(int cart_id) {
+    sqlite3 *db = get_db();
+    sqlite3_stmt *stmt;
+    const char *sql = "DELETE FROM Carts WHERE id = ?";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare query: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, cart_id);
+
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE) {
+        const char* err = sqlite3_errmsg(db);
+        fprintf(stderr, "Delete failed: %s\n", err);
+        sqlite3_close(db);
+        return 0;
+    }
+
+    sqlite3_close(db);
+    return 1;
+}

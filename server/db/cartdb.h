@@ -8,4 +8,5 @@
 int cart_insert(const char* username,const int movie_id, char* errors);
 int cart_remove(const int cart_id);
 int find_cart_by_username(const char* username,Cart* cart_items[], int max_results);
+int cart_delete_by_id(int cart_id);
 #endif

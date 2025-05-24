@@ -393,6 +393,17 @@ int handle_cart_command(char** tokens, int client_fd){
             return 1;
             break;
         }
+        case DEL_SUBCOMAND: {
+            int cart_id = atoi(tokens[2]);
+            if (cart_delete_by_id(cart_id)){
+                snprintf(response, ERR_SIZE, "OK");    
+            } else {
+                snprintf(response, ERR_SIZE, "KO");
+            }
+            send(client_fd, response, strlen(response), 0);
+            return 0;
+            break;
+        }
         default: {
             printf("Subcommand not found.\n");
             return 0;

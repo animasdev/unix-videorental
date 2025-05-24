@@ -22,7 +22,7 @@ typedef struct {
 typedef struct {
     int id;
     char* username;
-    int id_movie;
+    Video* movie;
 } Cart;
 
 

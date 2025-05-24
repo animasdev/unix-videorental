@@ -3,7 +3,7 @@
 #include <string.h>
 #include <sqlite3.h>
 #include "cartdb.h"
-
+#include "videodb.h"
 #define ERR_SIZE 256
 extern sqlite3 *get_db();
 
@@ -63,8 +63,7 @@ int find_cart_by_username(const char* username, Cart* cart_items[], int max_resu
         cart->id = sqlite3_column_int(stmt, 0);
         const unsigned char* username = sqlite3_column_text(stmt, 1);
         cart->username = strdup((const char*)username);
-        cart->id_movie = sqlite3_column_int(stmt, 2);
-
+        cart->movie = find_video_by_id(sqlite3_column_int(stmt, 2));
         cart_items[count++] = cart;
     }
 

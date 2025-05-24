@@ -23,6 +23,7 @@ int parse_add_movie_response(const char* response, int* movie_id);
 Video* parse_search_movie_response_item(const char* response);
 int parse_search_movie_response(const char* response);
 int parse_rent_movie_response(const char* response, char* due_date);
+Cart* parse_get_cart_response_item(const char* response);
 
 int main() {
     int sock;
@@ -257,9 +258,12 @@ int main() {
                             if (strcmp(buffer,"q") == 0){
                                 break;
                             }else {
-                                printf("inserted %d\n",atoi(buffer));
-                                wanted[current]=atoi(buffer);
-                                printf("inserted %d\n",wanted[current]);
+                                snprintf(request, sizeof(request), "CART ADD %s %d",username,atoi(buffer));
+                                if (!send_request(sock,request,response)) {
+                                    perror("send");
+                                    close(sock);
+                                    return 1;
+                                }
                                 current++;
                             }
                         }
@@ -269,17 +273,23 @@ int main() {
                         }
                         cart:
                         printf("\nYour current cart:\n");
-                        for (int i=0; i<current; i++){
-                            if (wanted[i] == -1) continue;
-                            snprintf(request, sizeof(request), "MOVIE GET %d",wanted[i]);
+                        snprintf(request, sizeof(request), "CART GET %s",username);
+                        if (!send_request(sock,request,response)) {
+                            perror("send");
+                            close(sock);
+                            return 1;
+                        }
+                        char item_resp[BUFFER_SIZE];
+                        int found = parse_search_movie_response(response);
+                        for (int i=0; i<found; i++){
+                            snprintf(request, sizeof(request), "NEXT");
                             if (!send_request(sock,request,response)) {
                                 perror("send");
                                 close(sock);
                                 return 1;
                             }
-                            const Video* video=parse_search_movie_response_item(response);
-                            cart[i]=*video;
-                            printf("Nr.: %d Title: \"%s\"\n",i,video->title);
+                            const Cart* cart=parse_get_cart_response_item(response);
+                            printf("Nr.: %d Title: \"%s\"\n",i,cart->movie->title);
                         }
                         printf("Options:\n");
                         printf("1. Remove movie from cart\n");
@@ -438,6 +448,24 @@ Video* parse_search_movie_response_item(const char* response) {
         vid->av_copies = atoi(tokens[2]);
         vid->is_rentable = atoi(tokens[3]);
         return vid;
+    }
+    
+    return NULL;
+}
+
+Cart* parse_get_cart_response_item(const char* response) {
+    char* tokens[MAX_TOKENS];
+    Cart* cart = malloc(sizeof(Cart));
+    cart->movie = malloc(sizeof(Video));
+    if (parse_command(response,tokens)>0) {
+        cart->id=atoi(tokens[0]);
+        cart->username=tokens[1];
+        cart->movie->id=atoi(tokens[2]);
+        const char* title = tokens[3];
+        cart->movie->title = strdup((const char*)title);;
+        cart->movie->av_copies= atoi(tokens[4]);
+        cart->movie->is_rentable= atoi(tokens[5]);
+        return cart;
     }
     
     return NULL;

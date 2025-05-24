@@ -382,14 +382,10 @@ int handle_cart_command(char** tokens, int client_fd){
                 if (n <= 0) break;
                 ack_buf[n] = '\0';
                 if (strncmp(ack_buf, "NEXT", 4) != 0) break;
-                Video* movie = find_video_by_id(results[i]->id_movie);
-                if (movie == NULL) {
-                    snprintf(response, ERR_SIZE, "KO");  
-                } else {
-                    snprintf(response, ERR_SIZE, "%d %s \"%s\" %d",results[i]->id,results[i]->username, movie->title, movie->is_rentable);
-                    printf("%s\n",response);
-                    send(client_fd, response, strlen(response), 0);
-                }
+                Video* movie = results[i]->movie;
+                snprintf(response, ERR_SIZE, "%d %s %d \"%s\" %d %d",results[i]->id,results[i]->username, movie->id, movie->title, movie->av_copies,movie->is_rentable);
+                printf("%s\n",response);
+                send(client_fd, response, strlen(response), 0);
                 free(results[i]->username);
                 free(results[i]);
             }

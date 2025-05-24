@@ -36,6 +36,14 @@ int setup_db() {
         "returned_at TIMESTAMP, "
         "FOREIGN KEY(video_id) REFERENCES Videos(id), "
         "FOREIGN KEY(username) REFERENCES Users(username));";
+    
+    const char *create_carts_table =
+        "CREATE TABLE IF NOT EXISTS Carts ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "video_id INTEGER NOT NULL, "
+        "username TEXT NOT NULL, "
+        "FOREIGN KEY(video_id) REFERENCES Videos(id), "
+        "FOREIGN KEY(username) REFERENCES Users(username));";
 
     sqlite3_stmt *stmt;
 
@@ -80,6 +88,20 @@ int setup_db() {
     if (sqlite3_step(stmt) != SQLITE_DONE)
     {
         fprintf(stdout, "Failed to create Rentals table: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    if (sqlite3_prepare_v2(db, create_carts_table, -1, &stmt, 0) != SQLITE_OK)
+    {
+        fprintf(stdout, "Failed to prepare create Carts table: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return 0;
+    }
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        fprintf(stdout, "Failed to create Carts table: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         sqlite3_close(db);
         return 0;

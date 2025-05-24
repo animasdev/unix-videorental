@@ -7,8 +7,9 @@
 #include <signal.h>
 #include "userdb.h"
 #include "videodb.h"
-#include "../common/common.h"
+#include "cartdb.h"
 #include "db.h"
+#include "../common/common.h"
 
 #define SOCKET_PATH "/tmp/mysocket"
 #define BUFFER_SIZE 1024
@@ -24,6 +25,8 @@
 #define RENT_COMMAND 5
 #define CLOSE_COMMAND 6
 #define MOVIE_COMMAND 7
+#define CART_COMMAND 8
+
 #define DB_PATH "../db/videoteca.db"
 
 
@@ -33,6 +36,7 @@ int parse_command(const char *input, char *tokens[]);
 int command_type(const char *cmd);
 int db_setup();
 int handle_movie_command(char** tokens, int client_fd);
+int handle_cart_command(char** tokens, int client_fd);
 
 void handle_client(int client_fd) {
     char buffer[BUFFER_SIZE];
@@ -115,6 +119,12 @@ void handle_client(int client_fd) {
                 }
                 printf("Response: %s\n",response);
                 send(client_fd, response, sizeof(response), 0);
+                break;
+            }
+            case CART_COMMAND: {
+                if (!handle_cart_command(tokens,client_fd)){
+                    printf("Error handling movie subcommand\n");
+                }
                 break;
             }
             default:{
@@ -204,6 +214,8 @@ int command_type(const char *cmd) {
     if (strcmp(cmd, "RENT") == 0) return RENT_COMMAND;
     if (strcmp(cmd, "CLOSE") == 0) return CLOSE_COMMAND;
     if (strcmp(cmd, "MOVIE") == 0) return MOVIE_COMMAND;
+    if (strcmp(cmd, "CART") == 0) return CART_COMMAND;
+
 
     return 0;
 }
@@ -278,6 +290,71 @@ int handle_movie_command(char** tokens, int client_fd){
             char errors[ERR_SIZE];
             int nr = atoi(tokens[3]);
             int id = video_insert(title,nr,errors);
+            printf("errors '%s'\n",errors);
+            if (id > -1){
+                snprintf(response, ERR_SIZE, "OK %d", id);
+            } else {
+                printf("errors '%s'\n",errors);
+                snprintf(response, ERR_SIZE, "KO \"%s\"",errors);
+            }
+            send(client_fd, response, strlen(response), 0);
+            return 1;
+            break;
+        }
+        case SEARCH_SUBCOMMAND: {
+            char* query = tokens[2];
+            printf("query '%s'\n",query);
+            Video* results[MAX_QUERY_RESULTS];
+            int found = find_videos_by_title(query, results, MAX_QUERY_RESULTS);
+
+            if (found == -1 ){
+                snprintf(response, ERR_SIZE, "KO");    
+            } else {
+                snprintf(response, ERR_SIZE, "OK %d",found);
+            }
+            send(client_fd, response, strlen(response), 0);
+            for (int i = 0; i < found; i++) {
+                char ack_buf[32];
+                int n = recv(client_fd, ack_buf, sizeof(ack_buf) - 1, 0);
+                if (n <= 0) break;
+                ack_buf[n] = '\0';
+                if (strncmp(ack_buf, "NEXT", 4) != 0) break;
+                snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",results[i]->id,results[i]->title, results[i]->av_copies,results[i]->is_rentable);
+                printf("%s\n",response);
+                send(client_fd, response, strlen(response), 0);
+                free(results[i]->title);
+                free(results[i]);
+            }
+
+            return 1;
+            break;
+        }
+        case GET_SUBCOMMAND: {
+            int id = atoi(tokens[2]);
+            Video* video = find_video_by_id(id);
+            snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",video->id,video->title, video->av_copies,video->is_rentable);
+            printf("%s\n",response);
+            send(client_fd, response, strlen(response), 0);
+            return 1;
+            break;
+        }
+        default: {
+            printf("Subcommand not found.\n");
+            return 0;
+            break;
+        }
+    }
+}
+
+int handle_cart_command(char** tokens, int client_fd){
+    char response[ERR_SIZE];
+    switch(parse_movie_subcommand(tokens[1])) {
+        case ADD_SUBCOMAND: {
+            char* username = tokens[2];
+            printf("username '%s'\n",username);
+            char errors[ERR_SIZE];
+            int video_id = atoi(tokens[3]);
+            int id = cart_insert(username,video_id,errors);
             printf("errors '%s'\n",errors);
             if (id > -1){
                 snprintf(response, ERR_SIZE, "OK %d", id);

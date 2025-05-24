@@ -18,6 +18,14 @@ typedef struct {
     char* end_date; 
 } Rental;
 
+
+typedef struct {
+    int id;
+    char* username;
+    int id_movie;
+} Cart;
+
+
 int parse_command(const char *input, char *tokens[]);
 
 #endif 

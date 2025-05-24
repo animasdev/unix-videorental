@@ -351,11 +351,9 @@ int handle_cart_command(char** tokens, int client_fd){
     switch(parse_movie_subcommand(tokens[1])) {
         case ADD_SUBCOMAND: {
             char* username = tokens[2];
-            printf("username '%s'\n",username);
             char errors[ERR_SIZE];
             int video_id = atoi(tokens[3]);
             int id = cart_insert(username,video_id,errors);
-            printf("errors '%s'\n",errors);
             if (id > -1){
                 snprintf(response, ERR_SIZE, "OK %d", id);
             } else {
@@ -366,11 +364,11 @@ int handle_cart_command(char** tokens, int client_fd){
             return 1;
             break;
         }
-        case SEARCH_SUBCOMMAND: {
-            char* query = tokens[2];
-            printf("query '%s'\n",query);
-            Video* results[MAX_QUERY_RESULTS];
-            int found = find_videos_by_title(query, results, MAX_QUERY_RESULTS);
+        case GET_SUBCOMMAND: {
+            char* username = tokens[2];
+            printf("username '%s'\n",username);
+            Cart* results[MAX_QUERY_RESULTS];
+            int found = find_cart_by_username(username, results, MAX_QUERY_RESULTS);
 
             if (found == -1 ){
                 snprintf(response, ERR_SIZE, "KO");    
@@ -384,22 +382,18 @@ int handle_cart_command(char** tokens, int client_fd){
                 if (n <= 0) break;
                 ack_buf[n] = '\0';
                 if (strncmp(ack_buf, "NEXT", 4) != 0) break;
-                snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",results[i]->id,results[i]->title, results[i]->av_copies,results[i]->is_rentable);
-                printf("%s\n",response);
-                send(client_fd, response, strlen(response), 0);
-                free(results[i]->title);
+                Video* movie = find_video_by_id(results[i]->id_movie);
+                if (movie == NULL) {
+                    snprintf(response, ERR_SIZE, "KO");  
+                } else {
+                    snprintf(response, ERR_SIZE, "%d %s \"%s\" %d",results[i]->id,results[i]->username, movie->title, movie->is_rentable);
+                    printf("%s\n",response);
+                    send(client_fd, response, strlen(response), 0);
+                }
+                free(results[i]->username);
                 free(results[i]);
             }
 
-            return 1;
-            break;
-        }
-        case GET_SUBCOMMAND: {
-            int id = atoi(tokens[2]);
-            Video* video = find_video_by_id(id);
-            snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",video->id,video->title, video->av_copies,video->is_rentable);
-            printf("%s\n",response);
-            send(client_fd, response, strlen(response), 0);
             return 1;
             break;
         }

@@ -38,6 +38,37 @@ int cart_insert(const char* username,const int movie_id,char* errors){
 int cart_remove(const int cart_id) {
     return 0;
 }
-int find_cart_by_username(const char* username) {
-    return 0;
+int find_cart_by_username(const char* username, Cart* cart_items[], int max_results){
+    sqlite3* db = get_db();
+    sqlite3_stmt* stmt;
+    const char* sql = "SELECT id, username, video_id FROM Carts WHERE username = ?"; 
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare query: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT);
+    const char *expanded = sqlite3_expanded_sql(stmt);
+    if (expanded) {
+        printf("Executing SQL: %s\n", expanded);
+        sqlite3_free((void *)expanded);
+    }
+    int count = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && count < max_results) {
+        Cart* cart = malloc(sizeof(Cart));
+        if (!cart) break;
+
+        cart->id = sqlite3_column_int(stmt, 0);
+        const unsigned char* username = sqlite3_column_text(stmt, 1);
+        cart->username = strdup((const char*)username);
+        cart->id_movie = sqlite3_column_int(stmt, 2);
+
+        cart_items[count++] = cart;
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    return count;
 }

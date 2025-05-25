@@ -105,26 +105,9 @@ void handle_client(int client_fd) {
                 break;
             }
             case RENT_COMMAND: {
-                char response[100];
-                User *user=find_user_by_id(atoi(tokens[2]));
-                Video *video = find_video_by_id(atoi(tokens[3]));
-                printf("User %s wants to rent movie %s\n",user->username,video->title);
-                if (video->is_rentable){
-                    Rental *old = find_rental_by_username_and_movie(user->username,video->id);
-                    if (old == NULL) {
-                        int last_id = rent_video(user->username,video->id);
-                        Rental *rental = find_rental_by_id(last_id);
-                        printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
-                        snprintf(response, sizeof(response), "OK %d %s", last_id,rental->due_date);
-                    } else {
-                        snprintf(response, sizeof(response), "KO %d %s", old->id,old->due_date);
-                    }
-                    
-                } else {
-                    snprintf(response, sizeof(response), "KO UNAVAILABLE");
+                if (!handle_rent_command(tokens,client_fd)){
+                    printf("Error handling rent subcommand\n");
                 }
-                printf("Response: %s\n",response);
-                send(client_fd, response, sizeof(response), 0);
                 break;
             }
             case CART_COMMAND: {
@@ -277,7 +260,7 @@ int db_setup(){
 #define SEARCH_SUBCOMMAND 4
 #define GET_SUBCOMMAND 5
 
-int parse_movie_subcommand(const char* subcmd){
+int parse_subcommand(const char* subcmd){
     if (strcmp(subcmd, "ADD") == 0) return ADD_SUBCOMAND;
     if (strcmp(subcmd, "PUT") == 0) return PUT_SUBCOMAND;
     if (strcmp(subcmd, "DEL") == 0) return DEL_SUBCOMAND;
@@ -289,7 +272,7 @@ int parse_movie_subcommand(const char* subcmd){
 }
 int handle_movie_command(char** tokens, int client_fd){
     char response[ERR_SIZE];
-    switch(parse_movie_subcommand(tokens[1])) {
+    switch(parse_subcommand(tokens[1])) {
         case ADD_SUBCOMAND: {
             char* title = tokens[2];
             printf("title '%s'\n",title);
@@ -352,9 +335,47 @@ int handle_movie_command(char** tokens, int client_fd){
     }
 }
 
+int handle_rent_command(char** tokens, int client_fd){
+    char response[ERR_SIZE];
+    switch(parse_subcommand(tokens[1])) {
+        case ADD_SUBCOMAND: {
+            User *user=find_user_by_id(atoi(tokens[2]));
+            Video *video = find_video_by_id(atoi(tokens[3]));
+            printf("User %s wants to rent movie %s\n",user->username,video->title);
+            if (video->is_rentable){
+                /* if there are already 5 rentals by this user give KO MAX*/
+                Rental *old = find_rental_by_username_and_movie(user->username,video->id);
+                if (old == NULL) {
+                    int last_id = rent_video(user->username,video->id);
+                    Rental *rental = find_rental_by_id(last_id);
+                    printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
+                    snprintf(response, sizeof(response), "OK %d %s", last_id,rental->due_date);
+                } else {
+                    snprintf(response, sizeof(response), "KO %d %s", old->id,old->due_date);
+                }
+                
+            } else {
+                snprintf(response, sizeof(response), "KO UNAVAILABLE");
+            }
+            printf("Response: %s\n",response);
+            send(client_fd, response, sizeof(response), 0);
+            break;
+        }
+        case GET_SUBCOMMAND :{
+            break;
+        }
+        default: {
+            printf("Subcommand not found.\n");
+            return 0;
+            break;
+        }
+    }
+   
+}
+
 int handle_cart_command(char** tokens, int client_fd){
     char response[ERR_SIZE];
-    switch(parse_movie_subcommand(tokens[1])) {
+    switch(parse_subcommand(tokens[1])) {
         case ADD_SUBCOMAND: {
             char* username = tokens[2];
             char errors[ERR_SIZE];

@@ -290,7 +290,13 @@ int main() {
                                     }
                                     int is_new;
                                     int rent_id = parse_rent_movie_response(response,due_date,&is_new);
-                                    printf("%s \"%s\" untill %s\n",is_new ? "Rented" : "You already rented", carts[i].movie->title,due_date);
+                                    snprintf(request, sizeof(request), "CART DEL %d",carts[i].id);
+                                    if (!send_request(sock,request,response)) {
+                                        perror("send");
+                                        close(sock);
+                                        return 1;
+                                    }
+                                    printf("%s \"%s\" untill %s. Removed from cart\n",is_new ? "Rented" : "You already rented", carts[i].movie->title,due_date);
                                 }
                                 break;
                             }

@@ -129,7 +129,7 @@ void handle_client(int client_fd) {
             }
             case CART_COMMAND: {
                 if (!handle_cart_command(tokens,client_fd)){
-                    printf("Error handling movie subcommand\n");
+                    printf("Error handling cart subcommand\n");
                 }
                 break;
             }
@@ -407,7 +407,7 @@ int handle_cart_command(char** tokens, int client_fd){
                 snprintf(response, ERR_SIZE, "KO");
             }
             send(client_fd, response, strlen(response), 0);
-            return 0;
+            return 1;
             break;
         }
         default: {

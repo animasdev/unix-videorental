@@ -110,12 +110,18 @@ void handle_client(int client_fd) {
                 Video *video = find_video_by_id(atoi(tokens[3]));
                 printf("User %s wants to rent movie %s\n",user->username,video->title);
                 if (video->is_rentable){
-                    int last_id = rent_video(user->username,video->id);
-                    Rental *rental = find_rental_by_id(last_id);
-                    printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
-                    snprintf(response, sizeof(response), "OK %d %s", last_id,rental->due_date);
+                    Rental *old = find_rental_by_username_and_movie(user->username,video->id);
+                    if (old == NULL) {
+                        int last_id = rent_video(user->username,video->id);
+                        Rental *rental = find_rental_by_id(last_id);
+                        printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
+                        snprintf(response, sizeof(response), "OK %d %s", last_id,rental->due_date);
+                    } else {
+                        snprintf(response, sizeof(response), "KO %d %s", old->id,old->due_date);
+                    }
+                    
                 } else {
-                    snprintf(response, sizeof(response), "KO");
+                    snprintf(response, sizeof(response), "KO UNAVAILABLE");
                 }
                 printf("Response: %s\n",response);
                 send(client_fd, response, sizeof(response), 0);

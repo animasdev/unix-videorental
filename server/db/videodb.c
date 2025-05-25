@@ -238,3 +238,52 @@ Rental* find_rental_by_id(int rental_id) {
     printf("after close\n");
     return rental;
 }
+
+Rental* find_rental_by_username_and_movie(const char* username, const int movie_id){
+    sqlite3* db = get_db();
+    const char *sql = "SELECT id, video_id, username, due_date, rented_at FROM Rentals WHERE video_id = ? AND username = ?";
+    sqlite3_stmt *stmt;
+    Rental *rental = NULL;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
+        free(rental);
+        return NULL;
+    }
+
+    sqlite3_bind_int(stmt, 1, movie_id);
+    sqlite3_bind_text(stmt, 2, username, -1, SQLITE_TRANSIENT);
+    const char *expanded = sqlite3_expanded_sql(stmt);
+    if (expanded) {
+        printf("Executing SQL: %s\n", expanded);
+        sqlite3_free((void *)expanded);
+    }
+    int rc =sqlite3_step(stmt);
+    if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+        fprintf(stderr, "sqlite3_step failed: %s (code %d, extended %d)\n",
+                sqlite3_errmsg(db), rc, sqlite3_extended_errcode(db));
+    }
+    if ( rc == SQLITE_ROW) {
+        rental = malloc(sizeof(Rental));
+        if (!rental) {
+            perror("malloc");
+            sqlite3_finalize(stmt);
+            sqlite3_close(db);
+            return NULL;
+        }
+        rental->id = sqlite3_column_int(stmt, 0);
+        rental->id_movie = sqlite3_column_int(stmt, 1);
+
+        const unsigned char *username = sqlite3_column_text(stmt, 2);
+        const unsigned char *due_date = sqlite3_column_text(stmt, 3);
+        const unsigned char* start_date = sqlite3_column_text(stmt, 4);
+        rental->username=strdup((const char*)username);
+        rental->start_date=strdup((const char*)start_date);
+        rental->due_date=strdup((const char*)due_date);
+    } 
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    return rental;
+
+}

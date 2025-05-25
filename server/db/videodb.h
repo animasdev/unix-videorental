@@ -10,4 +10,5 @@ Video* find_video_by_id(const int id);
 int rent_video(const char* username,const int movie_id);
 Rental* find_rental_by_id(int rental_id);
 int find_rentals_by_username(const char* username, Rental* results[], int max_results);
+Rental* find_rental_by_username_and_movie(const char* username, const int movie_id);
 #endif 

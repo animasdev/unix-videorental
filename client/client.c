@@ -22,8 +22,11 @@ int parse_user_response(const char* response,int* usr_id,int* usr_is_admin);
 int parse_add_movie_response(const char* response, int* movie_id);
 Video* parse_search_movie_response_item(const char* response);
 int parse_search_movie_response(const char* response);
-int parse_rent_movie_response(const char* response, char* due_date);
+int parse_rent_movie_response(const char* response, char* due_date, int* is_new);
 Cart* parse_get_cart_response_item(const char* response);
+int handle_movie_search(int socket);
+int retrieve_cart(int socket, const char*username, Cart cart[], int max_results);
+int rent_cart(int socket, const char* username);
 
 int main() {
     int sock;
@@ -185,7 +188,7 @@ int main() {
             while(1) {
                 printf("\nChoose an option:\n");
                 printf("1. Search movie\n");
-                printf("2. Rent movie\n");
+                printf("2. Manage Cart\n");
                 printf("3. Return movie\n");
                 printf("q. Quit\n");
                 printf("Enter your choice: ");
@@ -198,102 +201,21 @@ int main() {
                     printf("Exiting...\n");
                 }
                 switch (input[0]) {
-                    case '1': {
-                        int nr = 0;
-                        printf("Enter word to search in the title: ");
-                        if (fgets(title, sizeof(title), stdin) == NULL) {
-                            printf("No title input.\n");
-                            close(sock);
-                            return 1;
-                        }
-                        size_t len = strlen(title);
-                        if (len > 0 && title[len-1] == '\n') {
-                            title[len-1] = '\0';
-                        }
-                        snprintf(request, sizeof(request), "MOVIE SEARCH %s",title);
-                        if (!send_request(sock,request,response)) {
-                            perror("send");
-                            close(sock);
-                            return 1;
-                        }else{
-                            char item_resp[BUFFER_SIZE];
-                            int found = parse_search_movie_response(response);
-                            printf("Found %d results:\n",found);
-                            for (int i = 0; i < found; ++i) {
-                                if (!send_request(sock,"NEXT",item_resp)) {
-                                    perror("send");
-                                    close(sock);
-                                    return 1;
-                                }
-                                Video* vid = parse_search_movie_response_item(item_resp);
-                                if (vid == NULL){
-                                    printf("Error parsing video number %d\n",i);
-                                } else {
-                                    printf("%d. %s currently available?: %s \n",
-                                        vid->id,vid->title,vid->is_rentable == 1 ? "yes" : "no");
-                                    free(vid->title);
-                                    free(vid);
-                                }
-                            }
-                            printf("ok\n");
-                        }
+                    case '1':
+                        handle_movie_search(sock);
                         break;
-                    }
                     case '2':{
-                        int wanted[RENTABLE];
-                        Video cart[RENTABLE];
-                        int current = 0;
-                        printf("You can rent %d movies at once. Insert 'q' to stop adding\n",RENTABLE);
-                        while (current < RENTABLE){
-                            printf("Enter number of movie to add it to the cart: ");
-                            if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
-                                printf("No number input.\n");
-                                close(sock);
-                                return 1;
-                            }
-                            size_t len = strlen(buffer);
-                            if (len > 0 && buffer[len-1] == '\n') {
-                                buffer[len-1] = '\0';
-                            }
-                            if (strcmp(buffer,"q") == 0){
-                                break;
-                            }else {
-                                snprintf(request, sizeof(request), "CART ADD %s %d",username,atoi(buffer));
-                                if (!send_request(sock,request,response)) {
-                                    perror("send");
-                                    close(sock);
-                                    return 1;
-                                }
-                                current++;
-                            }
-                        }
-                        if (current == 0){
-                            printf("No movies inserted.\n");
-                            break;
-                        }
+                        Cart carts[RENTABLE];
+                        int nr_items = 0;
                         cart:
-                        printf("\nYour current cart:\n");
-                        snprintf(request, sizeof(request), "CART GET %s",username);
-                        if (!send_request(sock,request,response)) {
-                            perror("send");
-                            close(sock);
-                            return 1;
-                        }
-                        char item_resp[BUFFER_SIZE];
-                        int found = parse_search_movie_response(response);
-                        for (int i=0; i<found; i++){
-                            snprintf(request, sizeof(request), "NEXT");
-                            if (!send_request(sock,request,response)) {
-                                perror("send");
-                                close(sock);
-                                return 1;
-                            }
-                            const Cart* cart=parse_get_cart_response_item(response);
-                            printf("Nr.: %d Title: \"%s\"\n",i,cart->movie->title);
-                        }
-                        printf("Options:\n");
-                        printf("1. Remove movie from cart\n");
-                        printf("2. Send rent request for full cart\n");
+                        printf("\n");
+                        nr_items = retrieve_cart(sock,username,carts,RENTABLE);
+                        printf("Your cart currently has %d items. You can add up to %d items\n",nr_items,RENTABLE);
+                        printf("Please, choose an option:\n");
+                        printf("1. View Cart\n");
+                        printf("2. Add movie to cart\n");
+                        printf("3. Remove movie from cart\n");
+                        printf("4. Rent movies in your cart\n");
                         printf("insert another character to go back\n");
                         printf("Enter your choice: ");
                         if (fgets(input, sizeof(input), stdin) == NULL) {
@@ -302,38 +224,73 @@ int main() {
                         }
                         input[strcspn(input, "\n")] = 0;
                         switch(input[0]){
-                            case '1': {
-                                printf("Enter the Nr. to remove: ");
-                                if (fgets(input, sizeof(input), stdin) == NULL) {
-                                    printf("Input error.\n");
-                                    continue;
+                            case '1':
+                                for (int i=0;i <nr_items; i++){
+                                    printf("id: %d - title \"%s\"\n",carts[i].id,carts[i].movie->title);
                                 }
-                                int nr = atoi(input);
-                                if (nr>current){
-                                    printf("Invalid choice\n");
-                                }else{
-                                    wanted[nr]=-1;
-                                    printf("Removed \"%s\" from cart!\n",cart[nr].title);
-                                    goto cart;
+                                break;
+                            case '2': {
+                                printf("Enter id of movie to add it to the cart: ");
+                                if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
+                                    printf("No number input.\n");
+                                    close(sock);
+                                    return 1;
+                                }
+                                size_t len = strlen(buffer);
+                                if (len > 0 && buffer[len-1] == '\n') {
+                                    buffer[len-1] = '\0';
+                                }
+                                if (strcmp(buffer,"q") == 0){
+                                    break;
+                                }else {
+                                    snprintf(request, sizeof(request), "CART ADD %s %d",username,atoi(buffer));
+                                    if (!send_request(sock,request,response)) {
+                                        perror("send");
+                                        close(sock);
+                                        return 1;
+                                    }
                                 }
                                 break;
                             }
-                            case '2': {
-                                for (int i=0; i<current; i++){
-                                    if (wanted[i] == -1) continue;
-                                    snprintf(request, sizeof(request), "RENT ADD %d %d",usr_id,wanted[i]);
+                            case '3': {
+                                printf("Enter id of item to remove it to the cart: ");
+                                if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
+                                    printf("No number input.\n");
+                                    close(sock);
+                                    return 1;
+                                }
+                                size_t len = strlen(buffer);
+                                if (len > 0 && buffer[len-1] == '\n') {
+                                    buffer[len-1] = '\0';
+                                }
+                                if (strcmp(buffer,"q") == 0){
+                                    break;
+                                }else {
+                                    snprintf(request, sizeof(request), "CART DEL %d",atoi(buffer));
+                                    if (!send_request(sock,request,response)) {
+                                        perror("send");
+                                        close(sock);
+                                        return 1;
+                                    }
+                                }
+                                break;
+                            }
+                            case '4': {
+                                for (int i=0; i<nr_items; i++){
+                                    snprintf(request, sizeof(request), "RENT ADD %d %d",usr_id,carts[i].movie->id);
                                     if (!send_request(sock,request,response)) {
                                         perror("send");
                                         close(sock);
                                         return 1;
                                     }
                                     char due_date[BUFFER_SIZE];
-                                    if (strcmp(response,"KO") == 0){
-                                        printf("The movie \"%s\" is not available anymore!",cart[i].title);
+                                    if (strcmp(response,"KO UNAVAILABLE") == 0){
+                                        printf("The movie \"%s\" is not available anymore!",carts[i].movie->title);
                                         continue;
                                     }
-                                    int rent_id = parse_rent_movie_response(response,due_date);
-                                    printf("Rented \"%s\" untill %s\n",cart[i].title,due_date);
+                                    int is_new;
+                                    int rent_id = parse_rent_movie_response(response,due_date,&is_new);
+                                    printf("%s \"%s\" untill %s\n",is_new ? "Rented" : "You already rented", carts[i].movie->title,due_date);
                                 }
                                 break;
                             }
@@ -427,10 +384,14 @@ int parse_search_movie_response(const char* response) {
 }
 
 
-int parse_rent_movie_response(const char* response, char* due_date) {
+int parse_rent_movie_response(const char* response, char* due_date, int* is_new) {
     char* tokens[MAX_TOKENS];
-
     if (parse_command(response,tokens)>0) {
+        if (strcmp(tokens[0],"KO") == 0){
+            *is_new = 0;
+        } else {
+            *is_new = 1;
+        }
         const int rent_id = atoi(tokens[1]);
         snprintf(due_date, BUFFER_SIZE, "%s", tokens[2]);
         return rent_id;
@@ -469,4 +430,87 @@ Cart* parse_get_cart_response_item(const char* response) {
     }
     
     return NULL;
+}
+
+int handle_movie_search(int socket){
+    char title[BUFFER_SIZE];
+    char request[BUFFER_SIZE];
+    char response[BUFFER_SIZE];
+    int nr = 0;
+    printf("Enter word to search in the title: ");
+    if (fgets(title, sizeof(title), stdin) == NULL) {
+        printf("No title input.\n");
+        return 0;
+    }
+    size_t len = strlen(title);
+    if (len > 0 && title[len-1] == '\n') {
+        title[len-1] = '\0';
+    }
+    snprintf(request, sizeof(request), "MOVIE SEARCH %s",title);
+    if (!send_request(socket,request,response)) {
+        perror("send");
+        return 0;
+    }else{
+        char item_resp[BUFFER_SIZE];
+        int found = parse_search_movie_response(response);
+        printf("Found %d results:\n",found);
+        for (int i = 0; i < found; ++i) {
+            if (!send_request(socket,"NEXT",item_resp)) {
+                perror("send");
+                return 0;
+            }
+            Video* vid = parse_search_movie_response_item(item_resp);
+            if (vid == NULL){
+                printf("Error parsing video number %d\n",i);
+            } else {
+                printf("%d. %s currently available?: %s \n",
+                    vid->id,vid->title,vid->is_rentable == 1 ? "yes" : "no");
+                free(vid->title);
+                free(vid);
+            }
+        }
+    }
+    return 1;
+}
+
+int retrieve_cart(int socket, const char*username, Cart cart[], int max_results){
+    char request[BUFFER_SIZE];
+    char response[BUFFER_SIZE];
+    snprintf(request, sizeof(request), "CART GET %s",username);
+    if (!send_request(socket,request,response)) {
+        perror("send");
+        return -1;
+    }
+    char item_resp[max_results];
+    int found = parse_search_movie_response(response);
+    for (int i=0; i<found; i++){
+        snprintf(request, sizeof(request), "NEXT");
+        if (!send_request(socket,request,response)) {
+            perror("send");
+            return -1;
+        }
+        Cart* item=parse_get_cart_response_item(response);
+        cart[i]=*item;
+    }
+    return found;
+}
+
+int rent_cart(int socket, const char* username){
+    char request[BUFFER_SIZE];
+    char response[BUFFER_SIZE];
+    snprintf(request, sizeof(request), "CART RENT %s",username);
+    if (!send_request(socket,request,response)) {
+        perror("send");
+        return 0;
+    }
+    int found = parse_search_movie_response(response);
+    for (int i=0; i<found; i++){
+        snprintf(request, sizeof(request), "NEXT");
+        if (!send_request(socket,request,response)) {
+            perror("send");
+            return 1;
+        }
+        
+    }
+    return found;
 }

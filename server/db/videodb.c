@@ -7,7 +7,7 @@
 #define ERR_SIZE 256
 extern sqlite3 *get_db(); 
 
-
+const char* build_video_query(const char* where_clause, char* buffer, size_t size);
 
 int video_insert(const char *title, const int copies, char* errors) {
     sqlite3 *db = get_db();
@@ -43,10 +43,8 @@ int find_videos_by_title(const char* search_term, Video* results[], int max_resu
     sqlite3* db = get_db();
     sqlite3_stmt* stmt;
     int count = 0;
-    const char* sql = "SELECT v.id, v.title , v.available_copies ,count(r.id)<v.available_copies as rentable FROM Videos v "
-                      "left join Rentals r on r.video_id =v.id "
-                      "WHERE title LIKE ? "
-                      "group by v.id"; 
+    char sql[512];
+    build_video_query("WHERE title LIKE ?", sql, sizeof(sql));
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Failed to prepare query: %s\n", sqlite3_errmsg(db));
@@ -83,10 +81,8 @@ int find_videos_by_title(const char* search_term, Video* results[], int max_resu
 Video* find_video_by_id(const int id) {
     sqlite3* db = get_db();
     sqlite3_stmt* stmt;
-    const char* sql = "SELECT v.id, v.title , v.available_copies ,count(r.id)<v.available_copies as rentable FROM Videos v "
-                      "left join Rentals r on r.video_id =v.id "
-                      "WHERE v.id = ? "
-                      "group by v.id"; 
+    char sql[512];
+    build_video_query("WHERE v.id = ?", sql, sizeof(sql));
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Failed to prepare query: %s\n", sqlite3_errmsg(db));
@@ -286,4 +282,15 @@ Rental* find_rental_by_username_and_movie(const char* username, const int movie_
     sqlite3_close(db);
     return rental;
 
+}
+
+const char* build_video_query(const char* where_clause, char* buffer, size_t size) {
+    const char* base = 
+        "SELECT v.id, v.title, v.available_copies, count(r.id) < v.available_copies as rentable "
+        "FROM Videos v "
+        "LEFT JOIN Rentals r ON r.video_id = v.id "
+        "%s "
+        "GROUP BY v.id";
+    snprintf(buffer, size, base, where_clause ? where_clause : "");
+    return buffer;
 }

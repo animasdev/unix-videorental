@@ -288,7 +288,7 @@ const char* build_video_query(const char* where_clause, char* buffer, size_t siz
     const char* base = 
         "SELECT v.id, v.title, v.available_copies, count(r.id) < v.available_copies as rentable "
         "FROM Videos v "
-        "LEFT JOIN Rentals r ON r.video_id = v.id "
+        "LEFT JOIN Rentals r ON r.video_id = v.id and r.returned_at is NULL "
         "%s "
         "GROUP BY v.id";
     snprintf(buffer, size, base, where_clause ? where_clause : "");

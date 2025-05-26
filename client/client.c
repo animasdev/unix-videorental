@@ -754,3 +754,18 @@ void check_reminders(const int socket,const char* username) {
         }
     }
 }
+
+void check_overdue(const int socket) {
+    Rental rentals[MAX_QUERY_RESULT];
+    char buffer[BUFFER_SIZE];
+    int nr = retrieve_rentals(socket,"ALL",rentals,MAX_QUERY_RESULT,0);
+    for (int i=0;i<nr;i++){
+        if (rentals[i].reminder == 1) {
+            Video *video = retrieve_movie(socket,rentals[i].id_movie);
+            printf("\n");
+            snprintf(buffer,sizeof(buffer),"Attention! don't forget to return the movie \"%s\" before %s",video->title,rentals[i].due_date);
+            printf("%s\n",buffer);
+            reminder_movie(socket,rentals[i].id,0);
+        }
+    }
+}

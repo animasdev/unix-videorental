@@ -543,6 +543,7 @@ Video* parse_search_movie_response_item(const char* response) {
         vid->id = atoi(tokens[0]);
         vid->av_copies = atoi(tokens[2]);
         vid->is_rentable = atoi(tokens[3]);
+        vid->rented_copies = atoi(tokens[4]);
         return vid;
     }
     

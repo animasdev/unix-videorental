@@ -34,6 +34,7 @@ int setup_db() {
         "rented_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
         "due_date TIMESTAMP NOT NULL, "
         "returned_at TIMESTAMP, "
+        "reminder INTEGER NOT NULL DEFAULT 0, "
         "FOREIGN KEY(video_id) REFERENCES Videos(id), "
         "FOREIGN KEY(username) REFERENCES Users(username));";
     

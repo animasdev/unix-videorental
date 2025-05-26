@@ -12,4 +12,6 @@ Rental* find_rental_by_id(int rental_id);
 int find_rentals_by_username(const char* username, Rental* results[], int max_results, int include_returned);
 Rental* find_rental_by_username_and_movie(const char* username, const int movie_id);
 int set_rental_return_date(const int rental_id);
+int find_all_rentals(Rental* results[], int max_results, int include_returned);
+int set_rental_reminder(const int rental_id, const int reminder);
 #endif 

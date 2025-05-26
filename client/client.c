@@ -29,6 +29,9 @@ int retrieve_cart(int socket, const char*username, Cart cart[], int max_results)
 int retrieve_rentals(int socket, const char*username, Rental rentals[], int max_results, const int include_returned);
 int return_movie(int socket, const int rent_id);
 Video* retrieve_movie(int socket, const int movie_id);
+int movie_list(int socket, Video videos[], int max_results);
+int reminder_movie(int socket, const int rent_id, const int reminder);
+void check_reminders(const int socket,const char* username);
 int main() {
     int sock;
     struct sockaddr_un addr;
@@ -124,8 +127,10 @@ int main() {
             while(1) {
                 printf("\nChoose an option:\n");
                 printf("1. Insert new movie\n");
-                printf("2. Update existing movie\n");
-                printf("3. List expired rentals\n");
+                printf("2. Movies List\n");
+                printf("3. Active Rentals List\n");
+                printf("4. Rentals Archive\n");
+                printf("5. Send reminder\n");
                 printf("q. Quit\n");
                 printf("Enter your choice: ");
                 if (fgets(input, sizeof(input), stdin) == NULL) {
@@ -172,9 +177,49 @@ int main() {
                     }
                     break;
                 }
-                case '2':
-                    printf("You chose option 2 (fff)\n");
+                case '2': {
+                    Video videos[MAX_QUERY_RESULT];
+                    int found = movie_list(sock,videos,MAX_QUERY_RESULT);
+                    for (int i=0;i<found;i++){
+                        printf("ID: %d Title: \"%s\" Total Copies: %d Rented Copies: %d Available Copies: %d\n",
+                        videos[i].id,videos[i].title,videos[i].av_copies,videos[i].rented_copies,videos[i].av_copies-videos[i].rented_copies);
+                    }
                     break;
+                }
+                case '3': {
+                    Rental rentals[MAX_QUERY_RESULT];
+                    int found = retrieve_rentals(sock,"ALL",rentals,MAX_QUERY_RESULT,0);
+                    for (int i=0;i<found;i++){
+                        Video* video=retrieve_movie(sock,rentals[i].id_movie);
+                        int is_expired=is_date_passed(rentals[i].due_date);
+                        char* expired= is_expired ? "* This rental is overdue!" : "";
+                        printf("ID: %d Username: \"%s\" Title: \"%s\" Rented at: %s Due to: %s%s\n",
+                        rentals[i].id, rentals[i].username, video->title,rentals[i].start_date, rentals[i].due_date,expired);
+                    }
+                    break;
+                }
+                case '4': {
+                    Rental rentals[MAX_QUERY_RESULT];
+                    int found = retrieve_rentals(sock,"ALL",rentals,MAX_QUERY_RESULT,1);
+                    for (int i=0;i<found;i++){
+                        if (strcmp(rentals[i].end_date,"(null)")){
+                            Video* video=retrieve_movie(sock,rentals[i].id_movie);
+                            printf("ID: %d Username: \"%s\" Title: \"%s\" Rented at: %s Returned at: %s\n",
+                            rentals[i].id, rentals[i].username, video->title,rentals[i].start_date, rentals[i].end_date);
+                        }
+                    }
+                    break;
+                }
+                case '5': {
+                    char choice[10];
+                    printf("insert the rental id you want to send reminder for: ");
+                    if (fgets(choice, sizeof(choice), stdin) == NULL) {
+                        printf("choice error.\n");
+                        continue;
+                    }
+                    reminder_movie(sock,atoi(choice),1);
+                    break;
+                }
                 case 'q':
                 case 'Q':
                     exit(0);
@@ -187,6 +232,7 @@ int main() {
     case USER_ROLE: {
         char input[10];
             while(1) {
+                check_reminders(sock,username);
                 printf("\nChoose an option:\n");
                 printf("1. Search Movie\n");
                 printf("2. Manage Cart\n");
@@ -212,12 +258,16 @@ int main() {
                         cart:
                         printf("\n");
                         nr_items = retrieve_cart(sock,username,carts,MAX_QUERY_RESULT);
+                        if (nr_items == -1){
+                            printf("Server error. check if server is up or try again.\n");
+                            break;
+                        }
                         printf("Your cart currently has %d items.\n",nr_items);
                         printf("Please, choose an option:\n");
-                        printf("1. View Cart\n");
+                        if (nr_items > 0) printf("1. View Cart\n");
                         printf("2. Add movie to cart\n");
-                        printf("3. Remove movie from cart\n");
-                        printf("4. Rent movies in your cart\n");
+                        if (nr_items > 0) printf("3. Remove movie from cart\n");
+                        if (nr_items > 0) printf("4. Rent movies in your cart\n");
                         printf("insert another character to go back\n");
                         printf("Enter your choice: ");
                         if (fgets(input, sizeof(input), stdin) == NULL) {
@@ -321,6 +371,10 @@ int main() {
                         char choice[10];
                         Rental rentals[MAX_QUERY_RESULT];
                         int nr_items = retrieve_rentals(sock,username,rentals,MAX_QUERY_RESULT,0);
+                        if (nr_items == 0) {
+                            printf("You have no rented movie yet.\n");
+                            break;
+                        }
                         printf("You currently have %d rented movies:\n",nr_items);
                        for (int i=0;i <nr_items; i++){
                             Video* video = retrieve_movie(sock,rentals[i].id_movie);
@@ -349,7 +403,6 @@ int main() {
                         printf("List of the previously rented movies:\n");
                        for (int i=0;i <nr_items; i++){
                             Video* video = retrieve_movie(sock,rentals[i].id_movie);
-                            //printf("Rental: id %d user %s movie %d  rented at %s due date %s  returned at %s\n",rentals[i].id,rentals[i].username,rentals[i].id_movie,rentals[i].start_date,rentals[i].due_date, rentals[i].end_date);
                             if (strcmp(rentals[i].end_date,"(null)")){
                                 printf("Rental id: %d - title \"%s\" - taken on \"%s\" - returned on \"%s\"\n",rentals[i].id,video->title,rentals[i].start_date,rentals[i].end_date);
                             }
@@ -541,6 +594,35 @@ int handle_movie_search(int socket){
     return 1;
 }
 
+int movie_list(int socket, Video videos[], int max_results){
+    char title[BUFFER_SIZE];
+    char request[BUFFER_SIZE];
+    char response[BUFFER_SIZE];
+    int found = 0;
+    snprintf(request, sizeof(request), "MOVIE SEARCH %c",'%');
+    if (!send_request(socket,request,response)) {
+        perror("send");
+        return 0;
+    }else{
+        char item_resp[BUFFER_SIZE];
+        found = parse_search_movie_response(response);
+        for (int i = 0; i < found; ++i) {
+            if (!send_request(socket,"NEXT",item_resp)) {
+                perror("send");
+                return 0;
+            }
+            Video* vid = parse_search_movie_response_item(item_resp);
+            if (vid == NULL){
+                printf("Error parsing video number %d\n",i);
+            } else {
+                videos[i]=*vid;
+            }
+
+        }
+    }
+    return found;
+}
+
 int retrieve_cart(int socket, const char*username, Cart cart[], int max_results){
     char request[BUFFER_SIZE];
     char response[BUFFER_SIZE];
@@ -570,6 +652,7 @@ Rental* parse_search_rental_response_item(const char* response) {
         rental->id=atoi(tokens[0]);
         rental->username=tokens[1];
         rental->id_movie=atoi(tokens[2]);
+        rental->reminder=atoi(tokens[6]);
         const char* start_date = tokens[3];
         rental->start_date= strdup((const char*)start_date);
         const char* due_date = tokens[4];
@@ -625,5 +708,71 @@ int return_movie(int socket, const int rent_id) {
         return 0;
     }else {
         return check_response_ok(response);
+    }
+}
+
+int reminder_movie(int socket, const int rent_id, const int reminder) {
+    char request[BUFFER_SIZE];
+    char response[BUFFER_SIZE];
+    snprintf(request, sizeof(request), "RENT REMIND %d %d",rent_id,reminder);
+    if (!send_request(socket,request,response)) {
+        perror("send");
+        return 0;
+    }else {
+        return check_response_ok(response);
+    }
+}
+
+
+void print_banner(const char *message){
+    int width = 50; 
+    int msg_len = strlen(message);
+    int padding = (width - msg_len - 2) / 2; 
+
+    for (int i = 0; i < width; i++) {
+        printf("*");
+    }
+    printf("\n");
+
+    printf("*");
+    for (int i = 0; i < width - 2; i++) {
+        printf(" ");
+    }
+    printf("*\n");
+
+    printf("*");
+    for (int i = 0; i < padding; i++) {
+        printf(" ");
+    }
+    printf("%s", message);
+    for (int i = 0; i < width - msg_len - padding - 2; i++) {
+        printf(" ");
+    }
+    printf("*\n");
+
+    printf("*");
+    for (int i = 0; i < width - 2; i++) {
+        printf(" ");
+    }
+    printf("*\n");
+
+    for (int i = 0; i < width; i++) {
+        printf("*");
+    }
+    printf("\n");
+}
+
+void check_reminders(const int socket,const char* username) {
+    Rental rentals[MAX_QUERY_RESULT];
+    char buffer[BUFFER_SIZE];
+    int nr = retrieve_rentals(socket,username,rentals,MAX_QUERY_RESULT,0);
+    for (int i=0;i<nr;i++){
+        if (rentals[i].reminder == 1) {
+            Video *video = retrieve_movie(socket,rentals[i].id_movie);
+            printf("\n");
+            snprintf(buffer,sizeof(buffer),"Attention! don't forget to return the movie \"%s\" before %s",video->title,rentals[i].due_date);
+            printf("%s\n",buffer);
+            reminder_movie(socket,rentals[i].id,0);
+        }
     }
 }

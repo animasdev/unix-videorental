@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #define MAX_TOKENS 100
 
 /*
@@ -43,4 +44,27 @@ int parse_command(const char *input, char *tokens[]) {
 
     free(copy);
     return count;
+}
+/*
+Returns 1 if the given date in format Y-m-d is passed; 0 otherwise.
+*/
+int is_date_passed(const char* date_str) {
+    struct tm input_tm = {0};
+    if (strptime(date_str, "%Y-%m-%d", &input_tm) == NULL) {
+        fprintf(stderr, "Invalid date format: %s\n", date_str);
+        return -1; 
+    }
+
+    time_t input_time = mktime(&input_tm);
+    if (input_time == -1) {
+        fprintf(stderr, "Failed to convert input date\n");
+        return -1;
+    }
+
+    time_t now = time(NULL);
+    if (now == -1) {
+        perror("time");
+        return -1;
+    }
+    return difftime(now, input_time) > 0;
 }

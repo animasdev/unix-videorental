@@ -11,7 +11,7 @@
 #define MAX_TOKENS 100 
 #define ADMIN_ROLE 1
 #define USER_ROLE 0
-#define RENTABLE 5
+#define MAX_QUERY_RESULT 100
 
 /*
     send a request (as a string) to the server listening on socket and write the response in the given array.
@@ -26,7 +26,7 @@ int parse_rent_movie_response(const char* response, char* due_date, int* is_new)
 Cart* parse_get_cart_response_item(const char* response);
 int handle_movie_search(int socket);
 int retrieve_cart(int socket, const char*username, Cart cart[], int max_results);
-int rent_cart(int socket, const char* username);
+int retrieve_rentals(int socket, const char*username, Rental rentals[], int max_results);
 
 int main() {
     int sock;
@@ -189,7 +189,7 @@ int main() {
                 printf("\nChoose an option:\n");
                 printf("1. Search movie\n");
                 printf("2. Manage Cart\n");
-                printf("3. Return movie\n");
+                printf("3. Manage Rentals\n");
                 printf("q. Quit\n");
                 printf("Enter your choice: ");
                 if (fgets(input, sizeof(input), stdin) == NULL) {
@@ -205,12 +205,12 @@ int main() {
                         handle_movie_search(sock);
                         break;
                     case '2':{
-                        Cart carts[RENTABLE];
+                        Cart carts[MAX_QUERY_RESULT];
                         int nr_items = 0;
                         cart:
                         printf("\n");
-                        nr_items = retrieve_cart(sock,username,carts,RENTABLE);
-                        printf("Your cart currently has %d items. You can add up to %d items\n",nr_items,RENTABLE);
+                        nr_items = retrieve_cart(sock,username,carts,MAX_QUERY_RESULT);
+                        printf("Your cart currently has %d items.\n",nr_items);
                         printf("Please, choose an option:\n");
                         printf("1. View Cart\n");
                         printf("2. Add movie to cart\n");
@@ -230,6 +230,12 @@ int main() {
                                 }
                                 break;
                             case '2': {
+                                Rental rentals[MAX_QUERY_RESULT];
+                                int nr = retrieve_rentals(sock,username,rentals,MAX_QUERY_RESULT);
+                                if (nr == 5 ) {
+                                    printf("You already have the maximum number of rented movies at the same time.\nReturn something to rent another movie!\n");
+                                    break;
+                                }
                                 printf("Enter id of movie to add it to the cart: ");
                                 if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
                                     printf("No number input.\n");
@@ -285,8 +291,12 @@ int main() {
                                     }
                                     char due_date[BUFFER_SIZE];
                                     if (strcmp(response,"KO UNAVAILABLE") == 0){
-                                        printf("The movie \"%s\" is not available anymore!",carts[i].movie->title);
+                                        printf("The movie \"%s\" is not available anymore!\n",carts[i].movie->title);
                                         continue;
+                                    }
+                                    if (strcmp(response,"KO MAX") == 0){
+                                        printf("You already have the maximum number of rented movies at the same time.\nReturn something to rent another movie!\n");
+                                        break;
                                     }
                                     int is_new;
                                     int rent_id = parse_rent_movie_response(response,due_date,&is_new);
@@ -302,6 +312,10 @@ int main() {
                             }
                         }
                         
+                        
+                        break;
+                    }
+                    case '3' : {
                         
                         break;
                     }
@@ -373,7 +387,7 @@ int parse_add_movie_response(const char* response, int* movie_id) {
 /*
 Parses the response for the search movie request. The expected response is 'OK n'
 where n is the number of records found, which gets returned to the caller.
-If there was an error it returs -1.
+If there was an error it returns -1.
 */
 int parse_search_movie_response(const char* response) {
     char* tokens[MAX_TOKENS];
@@ -501,22 +515,43 @@ int retrieve_cart(int socket, const char*username, Cart cart[], int max_results)
     return found;
 }
 
-int rent_cart(int socket, const char* username){
+Rental* parse_search_rental_response_item(const char* response) {
+    char* tokens[MAX_TOKENS];
+    Rental* rental = malloc(sizeof(Rental));
+    if (parse_command(response,tokens)>0) {
+        rental->id=atoi(tokens[0]);
+        rental->username=tokens[1];
+        rental->id_movie=atoi(tokens[2]);
+        const char* start_date = tokens[3];
+        rental->start_date= strdup((const char*)start_date);
+        const char* due_date = tokens[4];
+        rental->due_date= strdup((const char*)due_date);
+        const char* end_date = tokens[5];
+        rental->end_date= strdup((const char*)end_date);
+        return rental;
+    }
+    
+    return NULL;
+}
+
+int retrieve_rentals(int socket, const char*username, Rental rentals[], int max_results){
     char request[BUFFER_SIZE];
     char response[BUFFER_SIZE];
-    snprintf(request, sizeof(request), "CART RENT %s",username);
+    snprintf(request, sizeof(request), "RENT SEARCH %s",username);
     if (!send_request(socket,request,response)) {
         perror("send");
-        return 0;
+        return -1;
     }
+    char item_resp[max_results];
     int found = parse_search_movie_response(response);
     for (int i=0; i<found; i++){
         snprintf(request, sizeof(request), "NEXT");
         if (!send_request(socket,request,response)) {
             perror("send");
-            return 1;
+            return -1;
         }
-        
+        Rental* item=parse_search_rental_response_item(response);
+        rentals[i]=*item;
     }
     return found;
 }

@@ -37,6 +37,7 @@ int command_type(const char *cmd);
 int db_setup();
 int handle_movie_command(char** tokens, int client_fd);
 int handle_cart_command(char** tokens, int client_fd);
+int handle_rent_command(char** tokens, int client_fd);
 
 void handle_client(int client_fd) {
     char buffer[BUFFER_SIZE];
@@ -343,25 +344,60 @@ int handle_rent_command(char** tokens, int client_fd){
             Video *video = find_video_by_id(atoi(tokens[3]));
             printf("User %s wants to rent movie %s\n",user->username,video->title);
             if (video->is_rentable){
-                /* if there are already 5 rentals by this user give KO MAX*/
-                Rental *old = find_rental_by_username_and_movie(user->username,video->id);
-                if (old == NULL) {
-                    int last_id = rent_video(user->username,video->id);
-                    Rental *rental = find_rental_by_id(last_id);
-                    printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
-                    snprintf(response, sizeof(response), "OK %d %s", last_id,rental->due_date);
+                Rental* rentals[MAX_QUERY_RESULTS];
+                int count = find_rentals_by_username(user->username,rentals,MAX_QUERY_RESULTS);
+                if (count == 5) {
+                    snprintf(response, sizeof(response), "KO MAX");
                 } else {
-                    snprintf(response, sizeof(response), "KO %d %s", old->id,old->due_date);
+                    Rental *old = find_rental_by_username_and_movie(user->username,video->id);
+                    if (old == NULL) {
+                        int last_id = rent_video(user->username,video->id);
+                        Rental *rental = find_rental_by_id(last_id);
+                        printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
+                        snprintf(response, sizeof(response), "OK %d %s", last_id,rental->due_date);
+                    } else {
+                        snprintf(response, sizeof(response), "KO %d %s", old->id,old->due_date);
+                    }
                 }
                 
             } else {
                 snprintf(response, sizeof(response), "KO UNAVAILABLE");
             }
             printf("Response: %s\n",response);
-            send(client_fd, response, sizeof(response), 0);
+            send(client_fd, response, strlen(response), 0);
+            return 1;
+            break;
+        }
+        case SEARCH_SUBCOMMAND: {
+            char* query = tokens[2];
+            printf("query '%s'\n",query);
+            Rental* results[MAX_QUERY_RESULTS];
+            int found = find_rentals_by_username(query, results, MAX_QUERY_RESULTS);
+
+            if (found == -1 ){
+                snprintf(response, ERR_SIZE, "KO");    
+            } else {
+                snprintf(response, ERR_SIZE, "OK %d",found);
+            }
+            send(client_fd, response, strlen(response), 0);
+            for (int i = 0; i < found; i++) {
+                char ack_buf[32];
+                int n = recv(client_fd, ack_buf, sizeof(ack_buf) - 1, 0);
+                if (n <= 0) break;
+                ack_buf[n] = '\0';
+                if (strncmp(ack_buf, "NEXT", 4) != 0) break;
+                snprintf(response, ERR_SIZE, "%d %s %d %s %s %s",results[i]->id,results[i]->username,results[i]->id_movie, results[i]->start_date,results[i]->due_date,results[i]->end_date);
+                printf("%s\n",response);
+                send(client_fd, response, strlen(response), 0);
+                free(results[i]->username);
+                free(results[i]);
+            }
+
+            return 1;
             break;
         }
         case GET_SUBCOMMAND :{
+            return 1;
             break;
         }
         default: {

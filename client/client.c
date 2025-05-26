@@ -26,8 +26,9 @@ int parse_rent_movie_response(const char* response, char* due_date, int* is_new)
 Cart* parse_get_cart_response_item(const char* response);
 int handle_movie_search(int socket);
 int retrieve_cart(int socket, const char*username, Cart cart[], int max_results);
-int retrieve_rentals(int socket, const char*username, Rental rentals[], int max_results);
-
+int retrieve_rentals(int socket, const char*username, Rental rentals[], int max_results, const int include_returned);
+int return_movie(int socket, const int rent_id);
+Video* retrieve_movie(int socket, const int movie_id);
 int main() {
     int sock;
     struct sockaddr_un addr;
@@ -187,9 +188,10 @@ int main() {
         char input[10];
             while(1) {
                 printf("\nChoose an option:\n");
-                printf("1. Search movie\n");
+                printf("1. Search Movie\n");
                 printf("2. Manage Cart\n");
-                printf("3. Manage Rentals\n");
+                printf("3. Return Rentals\n");
+                printf("4. See Rentals Archive\n");
                 printf("q. Quit\n");
                 printf("Enter your choice: ");
                 if (fgets(input, sizeof(input), stdin) == NULL) {
@@ -231,7 +233,7 @@ int main() {
                                 break;
                             case '2': {
                                 Rental rentals[MAX_QUERY_RESULT];
-                                int nr = retrieve_rentals(sock,username,rentals,MAX_QUERY_RESULT);
+                                int nr = retrieve_rentals(sock,username,rentals,MAX_QUERY_RESULT,0);
                                 if (nr == 5 ) {
                                     printf("You already have the maximum number of rented movies at the same time.\nReturn something to rent another movie!\n");
                                     break;
@@ -316,7 +318,44 @@ int main() {
                         break;
                     }
                     case '3' : {
-                        
+                        char choice[10];
+                        Rental rentals[MAX_QUERY_RESULT];
+                        int nr_items = retrieve_rentals(sock,username,rentals,MAX_QUERY_RESULT,0);
+                        printf("You currently have %d rented movies:\n",nr_items);
+                       for (int i=0;i <nr_items; i++){
+                            Video* video = retrieve_movie(sock,rentals[i].id_movie);
+                            printf("Rental id: %d - title \"%s\" - to return due %s\n",rentals[i].id,video->title,rentals[i].due_date);
+                            
+                            free(video->title);
+                            free(video);
+                        }
+                        printf("insert the rental id you want to return: ");
+                        if (fgets(choice, sizeof(choice), stdin) == NULL) {
+                            printf("choice error.\n");
+                            continue;
+                        }
+                        choice[strcspn(choice, "\n")] = 0;
+                        if (strcmp(choice, "q") == 0 || strcmp(choice, "Q") == 0) {
+                            printf("Exiting...\n");
+                        } else {
+                            int ok = return_movie(sock,atoi(choice));
+                            if (!ok) printf("Error returning the movie!\n");
+                        }
+                        break;
+                    }
+                    case '4': {
+                        Rental rentals[MAX_QUERY_RESULT];
+                        int nr_items = retrieve_rentals(sock,username,rentals,MAX_QUERY_RESULT,1);
+                        printf("List of the previously rented movies:\n");
+                       for (int i=0;i <nr_items; i++){
+                            Video* video = retrieve_movie(sock,rentals[i].id_movie);
+                            //printf("Rental: id %d user %s movie %d  rented at %s due date %s  returned at %s\n",rentals[i].id,rentals[i].username,rentals[i].id_movie,rentals[i].start_date,rentals[i].due_date, rentals[i].end_date);
+                            if (strcmp(rentals[i].end_date,"(null)")){
+                                printf("Rental id: %d - title \"%s\" - taken on \"%s\" - returned on \"%s\"\n",rentals[i].id,video->title,rentals[i].start_date,rentals[i].end_date);
+                            }
+                            free(video->title);
+                            free(video);
+                        }
                         break;
                     }
                     case 'q':
@@ -403,6 +442,15 @@ int parse_search_movie_response(const char* response) {
     return -1;
 }
 
+int check_response_ok(const char* response) {
+    char* tokens[MAX_TOKENS];
+    if (parse_command(response,tokens)>0){
+        printf("token[0]: %s\n",tokens[0]);
+        printf("token ok?: %d\n",strcmp(tokens[0], "OK") == 0);
+        return strcmp(tokens[0], "OK") == 0;
+    }
+    return 0;
+}
 
 int parse_rent_movie_response(const char* response, char* due_date, int* is_new) {
     char* tokens[MAX_TOKENS];
@@ -534,10 +582,10 @@ Rental* parse_search_rental_response_item(const char* response) {
     return NULL;
 }
 
-int retrieve_rentals(int socket, const char*username, Rental rentals[], int max_results){
+int retrieve_rentals(int socket, const char*username, Rental rentals[], int max_results, const int include_returned){
     char request[BUFFER_SIZE];
     char response[BUFFER_SIZE];
-    snprintf(request, sizeof(request), "RENT SEARCH %s",username);
+    snprintf(request, sizeof(request), "RENT SEARCH %s %d",username, include_returned);
     if (!send_request(socket,request,response)) {
         perror("send");
         return -1;
@@ -554,4 +602,28 @@ int retrieve_rentals(int socket, const char*username, Rental rentals[], int max_
         rentals[i]=*item;
     }
     return found;
+}
+
+Video* retrieve_movie(int socket, const int movie_id) {
+    char request[BUFFER_SIZE];
+    char response[BUFFER_SIZE];
+    snprintf(request, sizeof(request), "MOVIE GET %d",movie_id);
+    if (!send_request(socket,request,response)) {
+        perror("send");
+        return NULL;
+    }else {
+        return parse_search_movie_response_item(response);
+    }
+}
+
+int return_movie(int socket, const int rent_id) {
+    char request[BUFFER_SIZE];
+    char response[BUFFER_SIZE];
+    snprintf(request, sizeof(request), "RENT PUT %d",rent_id);
+    if (!send_request(socket,request,response)) {
+        perror("send");
+        return 0;
+    }else {
+        return check_response_ok(response);
+    }
 }

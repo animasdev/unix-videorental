@@ -150,12 +150,19 @@ int rent_video(const char* username,const int movie_id){
     return last_id;
 }
 
-int find_rentals_by_username(const char* username, Rental* results[], int max_results) {
+int find_rentals_by_username(const char* username, Rental* results[], int max_results, int include_returned) {
     sqlite3* db = get_db();
     sqlite3_stmt* stmt;
     int count = 0;
-    const char *sql = "SELECT id, video_id, username, due_date, rented_at FROM Rentals WHERE username = ?";
+    const char *base = "SELECT id, video_id, username, due_date, rented_at, returned_at FROM Rentals WHERE username = ?";
+    const char *active_clause = " AND returned_at IS NULL";
     
+    char sql[512];
+    if (!include_returned) {
+        snprintf(sql, sizeof(sql), "%s%s", base, active_clause);
+    } else {
+        snprintf(sql, sizeof(sql), "%s", base);
+    }
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Failed to prepare query: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
@@ -171,15 +178,16 @@ int find_rentals_by_username(const char* username, Rental* results[], int max_re
     while (sqlite3_step(stmt) == SQLITE_ROW && count < max_results) {
         Rental* rental = malloc(sizeof(Rental));
         if (!rental) break;
-
-        const unsigned char* name = sqlite3_column_text(stmt, 2);
-        const unsigned char* due_date = sqlite3_column_text(stmt, 3);
-        const unsigned char* start_date = sqlite3_column_text(stmt, 4);
-        rental->username = strdup((const char*)name);
         rental->id = sqlite3_column_int(stmt, 0);
         rental->id_movie = sqlite3_column_int(stmt, 1);
+        const unsigned char *username = sqlite3_column_text(stmt, 2);
+        const unsigned char *due_date = sqlite3_column_text(stmt, 3);
+        const unsigned char* start_date = sqlite3_column_text(stmt, 4);
+        const unsigned char* end_date = sqlite3_column_text(stmt, 5);
+        rental->username=strdup((const char*)username);
         rental->start_date=strdup((const char*)start_date);
         rental->due_date=strdup((const char*)due_date);
+        rental->end_date=end_date ? strdup((const char*)end_date) : NULL;
 
         results[count++] = rental;
     }
@@ -191,7 +199,7 @@ int find_rentals_by_username(const char* username, Rental* results[], int max_re
 
 Rental* find_rental_by_id(int rental_id) {
     sqlite3* db = get_db();
-    const char *sql = "SELECT id, video_id, username, due_date, rented_at FROM Rentals WHERE id = ?";
+    const char *sql = "SELECT id, video_id, username, due_date, rented_at, returned_at FROM Rentals WHERE id = ?";
     sqlite3_stmt *stmt;
     Rental *rental = malloc(sizeof(Rental));
     if (!rental) {
@@ -223,9 +231,11 @@ Rental* find_rental_by_id(int rental_id) {
         const unsigned char *username = sqlite3_column_text(stmt, 2);
         const unsigned char *due_date = sqlite3_column_text(stmt, 3);
         const unsigned char* start_date = sqlite3_column_text(stmt, 4);
+        const unsigned char* end_date = sqlite3_column_text(stmt, 5);
         rental->username=strdup((const char*)username);
         rental->start_date=strdup((const char*)start_date);
         rental->due_date=strdup((const char*)due_date);
+        rental->end_date=end_date ? strdup((const char*)end_date) : NULL;
     } 
 
     sqlite3_finalize(stmt);
@@ -237,7 +247,7 @@ Rental* find_rental_by_id(int rental_id) {
 
 Rental* find_rental_by_username_and_movie(const char* username, const int movie_id){
     sqlite3* db = get_db();
-    const char *sql = "SELECT id, video_id, username, due_date, rented_at FROM Rentals WHERE video_id = ? AND username = ?";
+    const char *sql = "SELECT id, video_id, username, due_date, rented_at, returned_at FROM Rentals WHERE video_id = ? AND username = ?";
     sqlite3_stmt *stmt;
     Rental *rental = NULL;
 
@@ -273,9 +283,11 @@ Rental* find_rental_by_username_and_movie(const char* username, const int movie_
         const unsigned char *username = sqlite3_column_text(stmt, 2);
         const unsigned char *due_date = sqlite3_column_text(stmt, 3);
         const unsigned char* start_date = sqlite3_column_text(stmt, 4);
+        const unsigned char* end_date = sqlite3_column_text(stmt, 5);
         rental->username=strdup((const char*)username);
         rental->start_date=strdup((const char*)start_date);
         rental->due_date=strdup((const char*)due_date);
+        rental->end_date=end_date ? strdup((const char*)end_date) : NULL;
     } 
 
     sqlite3_finalize(stmt);
@@ -293,4 +305,31 @@ const char* build_video_query(const char* where_clause, char* buffer, size_t siz
         "GROUP BY v.id";
     snprintf(buffer, size, base, where_clause ? where_clause : "");
     return buffer;
+}
+
+
+int set_rental_return_date(const int rental_id){
+    sqlite3 *db = get_db();
+    sqlite3_stmt *stmt;
+    const char *sql = "UPDATE Rentals set returned_at = CURRENT_DATE WHERE id = ?";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare insert: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt,1,rental_id);
+
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        const char* err= sqlite3_errmsg(db);
+        fprintf(stderr, "Update failed: %s\n", err);
+        sqlite3_close(db);
+        return 0;
+    }
+
+    sqlite3_close(db);
+    return 1;
 }

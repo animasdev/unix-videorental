@@ -345,12 +345,12 @@ int handle_rent_command(char** tokens, int client_fd){
             printf("User %s wants to rent movie %s\n",user->username,video->title);
             if (video->is_rentable){
                 Rental* rentals[MAX_QUERY_RESULTS];
-                int count = find_rentals_by_username(user->username,rentals,MAX_QUERY_RESULTS);
+                int count = find_rentals_by_username(user->username,rentals,MAX_QUERY_RESULTS,0);
                 if (count == 5) {
                     snprintf(response, sizeof(response), "KO MAX");
                 } else {
                     Rental *old = find_rental_by_username_and_movie(user->username,video->id);
-                    if (old == NULL) {
+                    if (old == NULL || old->end_date == NULL) {
                         int last_id = rent_video(user->username,video->id);
                         Rental *rental = find_rental_by_id(last_id);
                         printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
@@ -370,9 +370,10 @@ int handle_rent_command(char** tokens, int client_fd){
         }
         case SEARCH_SUBCOMMAND: {
             char* query = tokens[2];
+            const int include_returned = atoi(tokens[3]);
             printf("query '%s'\n",query);
             Rental* results[MAX_QUERY_RESULTS];
-            int found = find_rentals_by_username(query, results, MAX_QUERY_RESULTS);
+            int found = find_rentals_by_username(query, results, MAX_QUERY_RESULTS,include_returned);
 
             if (found == -1 ){
                 snprintf(response, ERR_SIZE, "KO");    
@@ -386,7 +387,7 @@ int handle_rent_command(char** tokens, int client_fd){
                 if (n <= 0) break;
                 ack_buf[n] = '\0';
                 if (strncmp(ack_buf, "NEXT", 4) != 0) break;
-                snprintf(response, ERR_SIZE, "%d %s %d %s %s %s",results[i]->id,results[i]->username,results[i]->id_movie, results[i]->start_date,results[i]->due_date,results[i]->end_date);
+                snprintf(response, ERR_SIZE, "%d %s %d \"%s\" \"%s\" \"%s\"",results[i]->id,results[i]->username,results[i]->id_movie, results[i]->start_date,results[i]->due_date,results[i]->end_date);
                 printf("%s\n",response);
                 send(client_fd, response, strlen(response), 0);
                 free(results[i]->username);
@@ -397,6 +398,18 @@ int handle_rent_command(char** tokens, int client_fd){
             break;
         }
         case GET_SUBCOMMAND :{
+            return 1;
+            break;
+        }
+        case PUT_SUBCOMAND: {
+            int id = atoi(tokens[2]);
+            if (set_rental_return_date(id)){
+                snprintf(response, sizeof(response), "OK");
+            } else {
+                snprintf(response, sizeof(response), "KO");
+            }
+            printf("Response: %s\n",response);
+            send(client_fd, response, strlen(response), 0);
             return 1;
             break;
         }

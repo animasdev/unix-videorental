@@ -467,7 +467,7 @@ int send_request(int socket, const char* request, char* response){
 }
 
 int parse_user_response(const char* response,int* usr_id,int* usr_is_admin){
-    char** tokens;
+    char* tokens[MAX_TOKENS];
     if (parse_command(response,tokens)>0){
         if (strcmp(tokens[0], "OK") == 0){
             const int id = atoi(tokens[1]);

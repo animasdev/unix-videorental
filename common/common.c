@@ -1,15 +1,17 @@
+#define _XOPEN_SOURCE 700
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>    
 #include <fcntl.h>    
-#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <time.h>
 #define MAX_LINE 256
 #define MAX_ENV 64
 #define MAX_TOKENS 100
-
+ //gcc ./server.c db/userdb.c db/db.c db/userdb.h db/videodb.c db/cartdb.c ../common/common.c -I./db -o pro -lsqlite3
+// sudo apt-get install -y sqlite3 libsqlite3-dev
 /*
 split the given input in tokens by whitespaces. use doublquotes (") to parse sentences in one token.
 If a doublequote is open and not closed, the rest of the input is gonna be considered part of the token that opened it.

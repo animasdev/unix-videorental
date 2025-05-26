@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,10 +12,6 @@
 #define MAX_TOKENS 100
  //gcc ./server.c db/userdb.c db/db.c db/userdb.h db/videodb.c db/cartdb.c ../common/common.c -I./db -o pro -lsqlite3
 // sudo apt-get install -y sqlite3 libsqlite3-dev
-char* strdup(const char* s){
-    char* copy = malloc(strlen(s)+1);
-    if (copy) strcpy(copy,s);
-}
 /*
 split the given input in tokens by whitespaces. use doublquotes (") to parse sentences in one token.
 If a doublequote is open and not closed, the rest of the input is gonna be considered part of the token that opened it.

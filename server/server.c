@@ -138,7 +138,7 @@ int main() {
     struct sockaddr_un addr;
     printf("Starting server\n");
     printf("Reading env file\n");
-    load_env_file(".env");
+    //load_env_file(".env");
     const char* db_path = getenv("DB_PATH");
     printf("db path: %s\n",db_path == NULL ? "Not found" : db_path);
 

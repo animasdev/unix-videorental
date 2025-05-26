@@ -2,22 +2,37 @@ version: '3.8'
 
 services:
   server:
-    build: .
-    container_name: video_rental_server
+    env_file: ./server/.env
+    build:
+      context: .
+      dockerfile: ./server/Dockerfile
+    container_name: my_server
+    tty: true
+    stdin_open: true
     volumes:
-      - ./db/videoteca.db:/app/db/videoteca.db  # DB binding from host
-      - ./logs:/app/logs  # DB binding from host
-      - socket_volume:/app/files/socket  # Unix socket inside the container
-    entrypoint: ["./server/server"]
+      - socket-vol:/tmp
+      - ./db:/app/db
+    networks:
+      - appnet
 
   client:
-    build: .
-    container_name: video_rental_client
+    env_file: ./client/.env
+    build:
+      context: .
+      dockerfile: ./client/Dockerfile
+    container_name: my_client
+    tty: true
+    stdin_open: true
+    depends_on:
+      - server
     volumes:
-      - ./files/videoteca.db:/app/files/videoteca.db  # DB binding from host
-      - ./logs:/app/logs
-      - socket_volume:/app/files/socket  # Unix socket inside the container
-    entrypoint: ["./client/client"]
+      - socket-vol:/tmp
+    networks:
+      - appnet
 
 volumes:
-  socket_volume:  # Volume for Unix socket file (within the container)
+  socket-vol:
+
+networks:
+  appnet:
+    driver: bridge

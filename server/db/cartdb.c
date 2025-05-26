@@ -5,10 +5,11 @@
 #include "cartdb.h"
 #include "videodb.h"
 #define ERR_SIZE 256
-extern sqlite3 *get_db();
+extern sqlite3 *get_db(const char* db_path);
 
 int cart_insert(const char* username,const int movie_id,char* errors){
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3 *db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "INSERT INTO Carts (username, video_id) VALUES (?, ?)";
 
@@ -39,7 +40,8 @@ int cart_remove(const int cart_id) {
     return 0;
 }
 int find_cart_by_username(const char* username, Cart* cart_items[], int max_results){
-    sqlite3* db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt* stmt;
     const char* sql = "SELECT id, username, video_id FROM Carts WHERE username = ?"; 
 
@@ -72,7 +74,8 @@ int find_cart_by_username(const char* username, Cart* cart_items[], int max_resu
     return count;
 }
 int cart_delete_by_id(int cart_id) {
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "DELETE FROM Carts WHERE id = ?";
 

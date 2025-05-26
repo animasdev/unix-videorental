@@ -4,12 +4,13 @@
 #include <stdlib.h>
 #include "userdb.h"
 
-extern sqlite3 *get_db(); 
+extern sqlite3 *get_db(const char* db_path); 
 /*
 if user of the given username exists, it returns the id. It returns -1 if the user is not found.
 */
 int user_exists(const char *username) {
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "SELECT id FROM Users WHERE username = ?";
 
@@ -43,7 +44,8 @@ int user_exists(const char *username) {
 }
 
 int user_login(const int usr_id, const char *password) {
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "SELECT password FROM Users WHERE id = ?";
 
@@ -73,7 +75,8 @@ int user_register(const char *username, const char *password) {
         return -1; // already exists
     }
 
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "INSERT INTO Users (username, password) VALUES (?, ?)";
 
@@ -93,7 +96,8 @@ int user_register(const char *username, const char *password) {
 }
 
 int user_is_admin(const int usr_id){
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "SELECT is_admin FROM Users WHERE id = ?";
 
@@ -116,7 +120,8 @@ int user_is_admin(const int usr_id){
 }
 
 User* find_user_by_id(const int id) {
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "SELECT id, username, is_admin FROM Users WHERE id = ?";
 
@@ -150,7 +155,8 @@ User* find_user_by_id(const int id) {
 }
 
 User* find_user_by_username(const char* username) {
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "SELECT id, username, is_admin FROM Users WHERE username = ?";
 

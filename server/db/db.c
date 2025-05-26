@@ -1,9 +1,9 @@
 #include "db.h"
 #include <stdio.h>
 
-sqlite3 *get_db() {
+sqlite3 *get_db(const char* db_path) {
     sqlite3 *db = NULL;
-    if (sqlite3_open("../db/videoteca.db", &db) != SQLITE_OK) {
+    if (db_path == NULL || sqlite3_open(db_path, &db) != SQLITE_OK) {
         fprintf(stderr, "Can't open DB: %s\n", sqlite3_errmsg(db));
         return NULL;
     }
@@ -11,8 +11,8 @@ sqlite3 *get_db() {
 }
 
 
-int setup_db() {
-    sqlite3 *db = get_db();
+int setup_db(const char* db_path) {
+    sqlite3 *db = get_db(db_path);
     const char *create_users_table =
         "CREATE TABLE IF NOT EXISTS Users ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -112,8 +112,8 @@ int setup_db() {
     return 1;
 }
 
-int admin_exists(){
-    sqlite3 *db = get_db();
+int admin_exists(const char* db_path){
+    sqlite3 *db = get_db(db_path);
     const char *sql = "SELECT COUNT(*) FROM Users WHERE is_admin=1;";
     sqlite3_stmt *stmt;
     int count = 0;

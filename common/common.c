@@ -1,7 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>    
+#include <fcntl.h>    
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <time.h>
+#define MAX_LINE 256
+#define MAX_ENV 64
 #define MAX_TOKENS 100
 
 /*
@@ -67,4 +73,52 @@ int is_date_passed(const char* date_str) {
         return -1;
     }
     return difftime(now, input_time) > 0;
+}
+
+
+void load_env_file(const char *filename) {
+    int fd = open(filename, O_RDONLY, 0);
+    if (fd < 0) {
+        perror("Failed to open .env file");
+        return;
+    }
+
+    char buffer[4096];
+    ssize_t bytes_read = read(fd, buffer, sizeof(buffer) - 1);
+    if (bytes_read < 0) {
+        perror("Failed to read .env file");
+        close(fd);
+        return;
+    }
+    buffer[bytes_read] = '\0';
+    close(fd);
+
+    char *line = strtok(buffer, "\n");
+    while (line != NULL) {
+        if (line[0] == '#' || line[0] == '\0') {
+            line = strtok(NULL, "\n");
+            continue;
+        }
+
+        char *equal = strchr(line, '=');
+        if (!equal) {
+            line = strtok(NULL, "\n");
+            continue;
+        }
+
+        *equal = '\0';
+        char *key = line;
+        char *value = equal + 1;
+        
+        char *env_entry = malloc(strlen(key) + strlen(value) + 2);
+        if (!env_entry) {
+            perror("malloc failed");
+            return;
+        }
+
+        sprintf(env_entry, "%s=%s", key, value);
+        putenv(env_entry);
+
+        line = strtok(NULL, "\n");
+    }
 }

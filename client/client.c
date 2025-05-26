@@ -42,7 +42,7 @@ int main() {
     int usr_id = 0;
     int usr_role = 0;
     char username[100];
-
+    int max_rentable =0;
     sock = socket(AF_LOCAL, SOCK_STREAM, 0);
     if (sock == -1) {
         perror("socket");
@@ -59,6 +59,16 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    ssize_t bytes = recv(socket, response, BUFFER_SIZE - 1, 0);
+    if (bytes <= 0) {
+        printf("Server disconnected or no response.\n");
+        close(socket);
+        return 0;
+    }
+    response[bytes] = '\0';
+    printf("Server response: %s\n", response);
+    max_rentable=atoi(response);
+    printf("Welcome to Unix Video Rental portal! by current policy users can rent up to %d videos. Have a good day\n",max_rentable);
     printf("Enter username: ");
     if (fgets(username, sizeof(username), stdin) == NULL) {
         printf("No username input.\n");
@@ -284,7 +294,7 @@ int main() {
                             case '2': {
                                 Rental rentals[MAX_QUERY_RESULT];
                                 int nr = retrieve_rentals(sock,username,rentals,MAX_QUERY_RESULT,0);
-                                if (nr == 5 ) {
+                                if (nr == max_rentable ) {
                                     printf("You already have the maximum number of rented movies at the same time.\nReturn something to rent another movie!\n");
                                     break;
                                 }

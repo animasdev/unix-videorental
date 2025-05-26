@@ -26,23 +26,21 @@
 #define CLOSE_COMMAND 6
 #define MOVIE_COMMAND 7
 #define CART_COMMAND 8
-
-#define DB_PATH "../db/videoteca.db"
-
-
 void cleanup(int signum);
 
 int parse_command(const char *input, char *tokens[]);
 int command_type(const char *cmd);
-int db_setup();
+int db_setup(const char* db_path);
 int handle_movie_command(char** tokens, int client_fd);
 int handle_cart_command(char** tokens, int client_fd);
-int handle_rent_command(char** tokens, int client_fd);
+int handle_rent_command(char** tokens, int client_fd, int max_rentable);
 
 void handle_client(int client_fd) {
     char buffer[BUFFER_SIZE];
     ssize_t bytes_read;
 
+    const char *max_rentable = getenv("MAX_RENTABLE");
+    send(client_fd,max_rentable,strlen(max_rentable),0);
     while ((bytes_read = read(client_fd, buffer, BUFFER_SIZE - 1)) > 0) {
         buffer[bytes_read] = '\0';
         printf("Client (%d) says: %s\n", client_fd, buffer);
@@ -106,7 +104,8 @@ void handle_client(int client_fd) {
                 break;
             }
             case RENT_COMMAND: {
-                if (!handle_rent_command(tokens,client_fd)){
+                int max=atoi(max_rentable);
+                if (!handle_rent_command(tokens,client_fd,max)){
                     printf("Error handling rent subcommand\n");
                 }
                 break;
@@ -137,6 +136,14 @@ void handle_client(int client_fd) {
 int main() {
     int server_fd, client_fd;
     struct sockaddr_un addr;
+    printf("Starting server\n");
+    printf("Reading env file\n");
+    load_env_file(".env");
+    const char* db_path = getenv("DB_PATH");
+    printf("db path: %s\n",db_path == NULL ? "Not found" : db_path);
+
+    const char* max_rentable = getenv("MAX_RENTABLE");
+    printf("max_rentable: %s\n",max_rentable == NULL ? "Not found" : max_rentable);
 
     signal(SIGINT, cleanup);
 
@@ -145,7 +152,6 @@ int main() {
         perror("socket");
         exit(EXIT_FAILURE);
     }
-
     unlink(SOCKET_PATH);
 
     memset(&addr, 0, sizeof(addr));
@@ -159,7 +165,7 @@ int main() {
     }
 
 
-    if (!db_setup()){
+    if (!db_setup(db_path)){
         printf("Error initializing db ...\n");
         return 1;
     }
@@ -217,12 +223,12 @@ void cleanup(int signum) {
     exit(0);
 }
 
-int db_setup(){
+int db_setup(const char* db_path){
     sqlite3 *db;
     int ret = 0;
-    setup_db();
-    db=get_db();
-    if (!admin_exists()){
+    setup_db(db_path);
+    db=get_db(db_path);
+    if (!admin_exists(db_path)){
         char username[100];
         char password[100];
 
@@ -338,7 +344,7 @@ int handle_movie_command(char** tokens, int client_fd){
     }
 }
 
-int handle_rent_command(char** tokens, int client_fd){
+int handle_rent_command(char** tokens, int client_fd, int max_rentable){
     char response[ERR_SIZE];
     switch(parse_subcommand(tokens[1])) {
         case ADD_SUBCOMAND: {
@@ -348,7 +354,7 @@ int handle_rent_command(char** tokens, int client_fd){
             if (video->is_rentable){
                 Rental* rentals[MAX_QUERY_RESULTS];
                 int count = find_rentals_by_username(user->username,rentals,MAX_QUERY_RESULTS,0);
-                if (count == 5) {
+                if (count == max_rentable) {
                     snprintf(response, sizeof(response), "KO MAX");
                 } else {
                     Rental *old = find_rental_by_username_and_movie(user->username,video->id);

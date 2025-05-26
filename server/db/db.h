@@ -3,8 +3,8 @@
 
 #include <sqlite3.h>
 
-sqlite3 *get_db();
+sqlite3 *get_db(const char* db_path);
 
-int setup_db();
-int admin_exists();
+int setup_db(const char* db_path);
+int admin_exists(const char* db_path);
 #endif 

@@ -30,4 +30,5 @@ typedef struct {
 
 int parse_command(const char *input, char *tokens[]);
 int is_date_passed(const char* date_str);
+void load_env_file(const char *filename);
 #endif 

@@ -5,12 +5,13 @@
 #include "videodb.h"
 
 #define ERR_SIZE 256
-extern sqlite3 *get_db(); 
+extern sqlite3 *get_db(const char* db_path); 
 
 const char* build_video_query(const char* where_clause, char* buffer, size_t size);
 
 int video_insert(const char *title, const int copies, char* errors) {
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "INSERT INTO Videos (title, available_copies) VALUES (?, ?)";
 
@@ -40,7 +41,8 @@ int video_insert(const char *title, const int copies, char* errors) {
 
 
 int find_videos_by_title(const char* search_term, Video* results[], int max_results) {
-    sqlite3* db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt* stmt;
     int count = 0;
     char sql[512];
@@ -81,7 +83,8 @@ int find_videos_by_title(const char* search_term, Video* results[], int max_resu
 }
 
 Video* find_video_by_id(const int id) {
-    sqlite3* db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt* stmt;
     char sql[512];
     build_video_query("WHERE v.id = ?", sql, sizeof(sql));
@@ -119,7 +122,8 @@ Video* find_video_by_id(const int id) {
 }
 
 int rent_video(const char* username,const int movie_id){
-    sqlite3* db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt* stmt;
     
     const char* sql = "INSERT INTO Rentals (video_id, username, due_date) "
@@ -153,7 +157,8 @@ int rent_video(const char* username,const int movie_id){
 }
 
 int find_rentals_by_username(const char* username, Rental* results[], int max_results, int include_returned) {
-    sqlite3* db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt* stmt;
     int count = 0;
     const char *base = "SELECT id, video_id, username, due_date, rented_at, returned_at, reminder FROM Rentals WHERE username = ?";
@@ -201,7 +206,8 @@ int find_rentals_by_username(const char* username, Rental* results[], int max_re
 }
 
 Rental* find_rental_by_id(int rental_id) {
-    sqlite3* db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     const char *sql = "SELECT id, video_id, username, due_date, rented_at, returned_at, reminder FROM Rentals WHERE id = ?";
     sqlite3_stmt *stmt;
     Rental *rental = malloc(sizeof(Rental));
@@ -249,7 +255,8 @@ Rental* find_rental_by_id(int rental_id) {
 }
 
 Rental* find_rental_by_username_and_movie(const char* username, const int movie_id){
-    sqlite3* db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     const char *sql = "SELECT id, video_id, username, due_date, rented_at, returned_at, reminder FROM Rentals WHERE video_id = ? AND username = ?";
     sqlite3_stmt *stmt;
     Rental *rental = NULL;
@@ -300,7 +307,8 @@ Rental* find_rental_by_username_and_movie(const char* username, const int movie_
 }
 
 int find_all_rentals(Rental* results[], int max_results, int include_returned) {
-    sqlite3* db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt* stmt;
     int count = 0;
     const char *base = "SELECT id, video_id, username, due_date, rented_at, returned_at, reminder FROM Rentals";
@@ -360,7 +368,8 @@ const char* build_video_query(const char* where_clause, char* buffer, size_t siz
 
 
 int set_rental_return_date(const int rental_id){
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "UPDATE Rentals set returned_at = CURRENT_DATE WHERE id = ?";
 
@@ -386,7 +395,8 @@ int set_rental_return_date(const int rental_id){
 }
 
 int set_rental_reminder(const int rental_id, const int reminder){
-    sqlite3 *db = get_db();
+    const char* db_path = getenv("DB_PATH");
+    sqlite3* db = get_db(db_path);
     sqlite3_stmt *stmt;
     const char *sql = "UPDATE Rentals set reminder = ? WHERE id = ?";
 

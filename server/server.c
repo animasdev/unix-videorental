@@ -330,7 +330,7 @@ int handle_movie_command(char** tokens, int client_fd){
         case GET_SUBCOMMAND: {
             int id = atoi(tokens[2]);
             Video* video = find_video_by_id(id);
-            snprintf(response, ERR_SIZE, "%d \"%s\" %d %d",video->id,video->title, video->av_copies,video->is_rentable);
+            snprintf(response, ERR_SIZE, "%d \"%s\" %d %d %d",video->id,video->title, video->av_copies,video->is_rentable, video->rented_copies);
             printf("%s\n",response);
             send(client_fd, response, strlen(response), 0);
             return 1;

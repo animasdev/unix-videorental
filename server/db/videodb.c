@@ -114,6 +114,7 @@ Video* find_video_by_id(const int id) {
         vid->title = strdup((const char*)title);
         vid->id = sqlite3_column_int(stmt, 0);
         vid->av_copies = sqlite3_column_int(stmt, 2);
+        vid->rented_copies= sqlite3_column_int(stmt, 4);
         vid->is_rentable = sqlite3_column_int(stmt, 3);
 
     }

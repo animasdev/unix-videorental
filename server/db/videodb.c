@@ -63,6 +63,7 @@ int find_videos_by_title(const char* search_term, Video* results[], int max_resu
             sqlite3_free((void *)expanded);
         }
     while (sqlite3_step(stmt) == SQLITE_ROW && count < max_results) {
+        
         Video* vid = malloc(sizeof(Video));
         if (!vid) break;
 
@@ -72,7 +73,7 @@ int find_videos_by_title(const char* search_term, Video* results[], int max_resu
         vid->av_copies = sqlite3_column_int(stmt, 2);
         vid->is_rentable = sqlite3_column_int(stmt, 3);
         vid->rented_copies = sqlite3_column_int(stmt, 4);
-
+        printf("%d \"%s\" %d %d %d\n",vid->id,vid->title, vid->av_copies,vid->is_rentable, vid->rented_copies);
 
         results[count++] = vid;
     }

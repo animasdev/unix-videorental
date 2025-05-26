@@ -358,12 +358,13 @@ int handle_rent_command(char** tokens, int client_fd, int max_rentable){
                     snprintf(response, sizeof(response), "KO MAX");
                 } else {
                     Rental *old = find_rental_by_username_and_movie(user->username,video->id);
-                    if (old == NULL || old->end_date == NULL) {
+                    if (old == NULL || old->end_date != NULL) {
                         int last_id = rent_video(user->username,video->id);
                         Rental *rental = find_rental_by_id(last_id);
                         printf("Rental: %d %d %s %s %s\n",rental->id, rental->id_movie, rental->username, rental->start_date, rental->due_date);
                         snprintf(response, sizeof(response), "OK %d %s", last_id,rental->due_date);
                     } else {
+                        printf("Old: %d %d %s %s %s %s\n",old->id, old->id_movie, old->username, old->start_date, old->due_date,old->end_date);
                         snprintf(response, sizeof(response), "KO %d %s", old->id,old->due_date);
                     }
                 }

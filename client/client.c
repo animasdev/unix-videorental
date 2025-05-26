@@ -32,6 +32,8 @@ Video* retrieve_movie(int socket, const int movie_id);
 int movie_list(int socket, Video videos[], int max_results);
 int reminder_movie(int socket, const int rent_id, const int reminder);
 void check_reminders(const int socket,const char* username);
+
+int debug = 0;
 int main() {
     int sock;
     struct sockaddr_un addr;
@@ -59,15 +61,21 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    ssize_t bytes = recv(socket, response, BUFFER_SIZE - 1, 0);
+    ssize_t bytes = recv(sock, response, BUFFER_SIZE - 1, 0);
     if (bytes <= 0) {
-        printf("Server disconnected or no response.\n");
-        close(socket);
+        printf("Server unavailable.\n");
+        close(sock);
         return 0;
     }
     response[bytes] = '\0';
-    printf("Server response: %s\n", response);
+    load_env_file(".env");
+    const char* log_level=getenv("LOG_LEVEL");
+    debug=log_level != NULL && strcmp(log_level,"debug") == 0;
+
+    if (debug) printf("\n[DEBUG] Server response: %s\n\n", response);
     max_rentable=atoi(response);
+
+
     printf("Welcome to Unix Video Rental portal! by current policy users can rent up to %d videos. Have a good day\n",max_rentable);
     printf("Enter username: ");
     if (fgets(username, sizeof(username), stdin) == NULL) {
@@ -128,7 +136,7 @@ int main() {
         }
     }
     if (parse_user_response(response,&usr_id,&usr_role)){
-        printf("User with id %d, logged in. is admin: %d\n",usr_id,usr_role);
+        if (debug) printf("\n[DEBUG] User with id %d, logged in. is admin: %d\n\n",usr_id,usr_role);
     }
 
     switch (usr_role) {
@@ -440,7 +448,7 @@ int main() {
 }
 
 int send_request(int socket, const char* request, char* response){
-    printf("request: '%s'\n",request);
+     if (debug) printf("\n[DEBUG] request: '%s'\n\n",request);
     if (send(socket, request, strlen(request), 0) == -1) {
         perror("send");
         close(socket);
@@ -454,7 +462,7 @@ int send_request(int socket, const char* request, char* response){
         return 0;
     }
     response[bytes] = '\0';
-    printf("Server response: %s\n", response);
+    if (debug) printf("\n[DEBUG]Server response: %s\n\n", response);
     return 1;
 }
 
@@ -494,8 +502,6 @@ If there was an error it returns -1.
 int parse_search_movie_response(const char* response) {
     char* tokens[MAX_TOKENS];
     if (parse_command(response,tokens)>0){
-        printf("token[0]: %s\n",tokens[0]);
-        printf("token ok?: %d\n",strcmp(tokens[0], "OK") == 0);
         if (strcmp(tokens[0], "OK") == 0){
             return atoi(tokens[1]);
         }else{
@@ -508,8 +514,6 @@ int parse_search_movie_response(const char* response) {
 int check_response_ok(const char* response) {
     char* tokens[MAX_TOKENS];
     if (parse_command(response,tokens)>0){
-        printf("token[0]: %s\n",tokens[0]);
-        printf("token ok?: %d\n",strcmp(tokens[0], "OK") == 0);
         return strcmp(tokens[0], "OK") == 0;
     }
     return 0;
@@ -734,43 +738,6 @@ int reminder_movie(int socket, const int rent_id, const int reminder) {
 }
 
 
-void print_banner(const char *message){
-    int width = 50; 
-    int msg_len = strlen(message);
-    int padding = (width - msg_len - 2) / 2; 
-
-    for (int i = 0; i < width; i++) {
-        printf("*");
-    }
-    printf("\n");
-
-    printf("*");
-    for (int i = 0; i < width - 2; i++) {
-        printf(" ");
-    }
-    printf("*\n");
-
-    printf("*");
-    for (int i = 0; i < padding; i++) {
-        printf(" ");
-    }
-    printf("%s", message);
-    for (int i = 0; i < width - msg_len - padding - 2; i++) {
-        printf(" ");
-    }
-    printf("*\n");
-
-    printf("*");
-    for (int i = 0; i < width - 2; i++) {
-        printf(" ");
-    }
-    printf("*\n");
-
-    for (int i = 0; i < width; i++) {
-        printf("*");
-    }
-    printf("\n");
-}
 
 void check_reminders(const int socket,const char* username) {
     Rental rentals[MAX_QUERY_RESULT];

@@ -10,8 +10,8 @@
 #define MAX_LINE 256
 #define MAX_ENV 64
 #define MAX_TOKENS 100
-
-
+ //gcc ./server.c db/userdb.c db/db.c db/userdb.h db/videodb.c db/cartdb.c ../common/common.c -I./db -o pro -lsqlite3
+// sudo apt-get install -y sqlite3 libsqlite3-dev
 char* strdup(const char* s){
     char* copy = malloc(strlen(s)+1);
     if (copy) strcpy(copy,s);

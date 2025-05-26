@@ -1,8 +1,9 @@
+#define _XOPEN_SOURCE
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>    
 #include <fcntl.h>    
-#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -10,6 +11,11 @@
 #define MAX_ENV 64
 #define MAX_TOKENS 100
 
+
+char* strdup(const char* s){
+    char* copy = malloc(strlen(s)+1);
+    if (copy) strcpy(copy,s);
+}
 /*
 split the given input in tokens by whitespaces. use doublquotes (") to parse sentences in one token.
 If a doublequote is open and not closed, the rest of the input is gonna be considered part of the token that opened it.

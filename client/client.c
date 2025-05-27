@@ -32,7 +32,7 @@ Video* retrieve_movie(int socket, const int movie_id);
 int movie_list(int socket, Video videos[], int max_results);
 int reminder_movie(int socket, const int rent_id, const int reminder);
 void check_reminders(const int socket,const char* username);
-
+void check_overdue(const int socket);
 int debug = 0;
 int main() {
     int sock;
@@ -68,8 +68,9 @@ int main() {
         return 0;
     }
     response[bytes] = '\0';
-    load_env_file(".env");
     const char* log_level=getenv("LOG_LEVEL");
+    if (log_level == NULL) load_env_file(".env");
+    log_level=getenv("LOG_LEVEL");
     debug=log_level != NULL && strcmp(log_level,"debug") == 0;
 
     if (debug) printf("\n[DEBUG] Server response: %s\n\n", response);
@@ -143,6 +144,7 @@ int main() {
         case ADMIN_ROLE:{
             char input[10];
             while(1) {
+                check_overdue(sock);
                 printf("\nChoose an option:\n");
                 printf("1. Insert new movie\n");
                 printf("2. Movies List\n");
@@ -760,10 +762,10 @@ void check_overdue(const int socket) {
     char buffer[BUFFER_SIZE];
     int nr = retrieve_rentals(socket,"ALL",rentals,MAX_QUERY_RESULT,0);
     for (int i=0;i<nr;i++){
-        if (rentals[i].reminder == 1) {
+        if (rentals[i].reminder == 0 && is_date_passed(rentals[i].due_date)) {
             Video *video = retrieve_movie(socket,rentals[i].id_movie);
             printf("\n");
-            snprintf(buffer,sizeof(buffer),"Attention! don't forget to return the movie \"%s\" before %s",video->title,rentals[i].due_date);
+            snprintf(buffer,sizeof(buffer),"Attention! the user %s did not return the movie \"%s\" before %s",rentals[i].username,video->title,rentals[i].due_date);
             printf("%s\n",buffer);
             reminder_movie(socket,rentals[i].id,0);
         }

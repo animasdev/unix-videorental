@@ -47,3 +47,6 @@ Se come nome utente viene inserito un utente sconoscito il client chiederà una 
 È possibile eseguire sia il server che il client in locale compilandoli con il gcc.
 Occorre avere nel proprio sistema le librerie di sviluppo di sqlite3.
 I risultati potrebbero variare.
+
+## Documentazione
+Nel file `DOC.md` è presente una documentazione che illustra le scelte implementative

@@ -8,7 +8,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY . .
+COPY ./client ./client
+
+COPY ./common ./common
 
 RUN gcc ./client/client.c ./common/*.c -o rental-client
 

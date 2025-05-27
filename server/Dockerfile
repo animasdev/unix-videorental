@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY . .
+COPY ./server ./server
+COPY ./common ./common
 
 RUN gcc -Wno-format-truncation ./server/server.c ./server/db/*.c common/*.c -o rental-server -lsqlite3 -I./server/db
 
